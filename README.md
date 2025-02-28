@@ -18,6 +18,7 @@ A secure, cross-platform service management API that provides controlled access 
 - [Documentation](./docs/BREAKDOWN.md)
 - [API Reference](./docs/API_USAGE.md)
 - [Contributing](./CONTRIBUTING.md)
+- [Updating](./docs/VERSIONS.md)
 
 ## Version Information
 
@@ -73,7 +74,7 @@ curl -X GET http://localhost:8080/services \
 
 ## License
 
-MIT License - See [LICENSE](./LICENSE) file for details
+GNU AFFERO GENERAL PUBLIC LICENSE - See [LICENSE](./LICENSE) file for details
 
 ## Security
 
