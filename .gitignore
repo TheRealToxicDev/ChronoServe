@@ -1,0 +1,53 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+
+# Coverage output
+*.out
+
+# Dependency directories
+# Uncomment the line below if you are using vendoring
+# vendor/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Binaries and distribution directories
+bin/
+dist/
+
+# Temporary files
+client/temp.go
+
+# Templating files
+templates/
+
+# Environment files
+.env
+
+# Config files
+config.yml
+config.yaml
+
+# IDE/Editor specific files
+# Uncomment the lines below if you use these editors
+# .idea/
+# .vscode/
+# *.sublime-workspace
+# *.sublime-project
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Other files
+*.tmp
+*.bak
