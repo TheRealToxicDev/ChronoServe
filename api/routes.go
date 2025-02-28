@@ -20,6 +20,20 @@ type Route struct {
 	Roles       []string
 }
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Auth-Token, X-Request-Id, X-Request-Start")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func SetupRoutes() http.Handler {
 	mux := http.NewServeMux()
 
@@ -48,11 +62,10 @@ func SetupRoutes() http.Handler {
 		{Path: "services/status/", Handler: serviceHandler.GetServiceStatus, RequireAuth: true, Roles: []string{"admin", "viewer"}},
 	}
 
-	// Register routes with appropriate middleware
+	// Register routes
 	for _, route := range routes {
 		handler := route.Handler
 
-		// Build middleware chain
 		if route.RequireAuth {
 			// Add authentication and role-based access
 			chainedHandler := middleware.Chain(
@@ -75,12 +88,20 @@ func SetupRoutes() http.Handler {
 			handler = chainedHandler.ServeHTTP
 		}
 
-		// Register route with API prefix
-		path := apiPrefix + route.Path
-		mux.HandleFunc(path, handler)
+		// Preflight handling
+		mux.HandleFunc(apiPrefix+route.Path, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodOptions {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Auth-Token, X-Request-Id, X-Request-Start")
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			handler(w, r)
+		})
 	}
 
-	return mux
+	return corsMiddleware(mux)
 }
 
 // healthHandler returns service health information
