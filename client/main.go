@@ -51,6 +51,9 @@ func main() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
+	utils.CheckVersionInBackground(logger)
+	logger.Info("Version checker started (current: v%s)", utils.Version)
+
 	// Initialize auth middleware
 	middleware.InitAuth(middleware.AuthConfig{
 		SecretKey:     config.Auth.SecretKey,
@@ -94,7 +97,6 @@ func main() {
 	// Start server
 	logger.Info("ChronoServe is online and awaiting requests")
 	logger.Info("Listening on %s:%d", config.Server.Host, config.Server.Port)
-	logger.Info("Current Version: v%s", utils.Version)
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("Server failed to start: %v", err)

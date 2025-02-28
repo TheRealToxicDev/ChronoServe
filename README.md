@@ -20,32 +20,6 @@ A secure, cross-platform service management API that provides controlled access 
 - [Contributing](./CONTRIBUTING.md)
 - [Updating](./docs/VERSIONS.md)
 
-## Version Information
-
-Current stable version: `v0.1.0`
-
-Check your version:
-```bash
-chronoserve --version
-```
-
-Example output:
-```
-ChronoServe v0.1.0 (latest)
-```
-
-Update notification example:
-```
-ChronoServe v0.1.0 (update available: v0.2.0)
-Visit https://github.com/therealtoxicdev/chronoserve/releases for the latest version
-```
-
-### Version Check Features
-- Automatic update checks against GitHub releases
-- Semantic versioning support
-- Update notifications in logs
-- Version flag (`--version`) for quick checks
-
 ## API Overview
 
 ### Public Endpoints

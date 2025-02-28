@@ -120,3 +120,32 @@ func PrintVersionInfo() {
 		fmt.Println("Visit https://github.com/therealtoxicdev/chronoserve/releases for the latest version")
 	}
 }
+
+func CheckVersionInBackground(logger *Logger) {
+	go func() {
+		// Initial check after short delay
+		time.Sleep(5 * time.Second)
+		checkAndLogVersion(logger)
+
+		// Periodic checks every 24 hours
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			checkAndLogVersion(logger)
+		}
+	}()
+}
+
+func checkAndLogVersion(logger *Logger) {
+	isLatest, latestVersion, err := CheckVersion()
+	if err != nil {
+		logger.Warn("Failed to check for updates: %v", err)
+		return
+	}
+
+	if !isLatest {
+		logger.Info("Update available: v%s (current: v%s)", latestVersion, Version)
+		logger.Info("Visit https://github.com/therealtoxicdev/chronoserve/releases for the latest version")
+	}
+}
