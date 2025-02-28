@@ -2,12 +2,32 @@
 
 ## Prerequisites
 
-- Go 1.23.1 or higher
+- Go 1.23.1 or higher (only for building from source)
 - Windows or Linux operating system
 - Administrative privileges
 - Git (for cloning the repository)
 
 ## Installation
+
+### Option 1: Prebuilt Binaries (Recommended)
+
+Download the latest prebuilt binary for your platform from the [Releases](https://github.com/therealtoxicdev/chronoserve/releases) page:
+
+#### Windows
+```powershell
+# PowerShell (as Administrator)
+# Download the latest Windows binary
+Invoke-WebRequest -Uri "https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_windows_amd64.exe" -OutFile "chronoserve.exe"
+```
+
+#### Linux
+```bash
+# Download the latest Linux binary
+wget https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_linux_amd64
+chmod +x chronoserve_linux_amd64
+```
+
+### Option 2: Build from Source
 
 1. Clone the repository:
 ```bash

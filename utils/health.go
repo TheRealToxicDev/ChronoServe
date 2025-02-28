@@ -10,6 +10,7 @@ import (
 type HealthStatus struct {
 	Status    string    `json:"status"`
 	Uptime    string    `json:"uptime"`
+	Version   string    `json:"version"`
 	GoVersion string    `json:"goVersion"`
 	Memory    MemStats  `json:"memory"`
 	StartTime time.Time `json:"startTime"`
@@ -32,6 +33,7 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	status := HealthStatus{
 		Status:    "healthy",
 		Uptime:    time.Since(startTime).String(),
+		Version:   Version,
 		GoVersion: runtime.Version(),
 		Memory: MemStats{
 			Alloc:      mem.Alloc,
