@@ -43,8 +43,8 @@ func main() {
 	logger, err := utils.NewLogger(utils.LoggerOptions{
 		Level:      utils.GetLogLevel(config.Logging.Level),
 		Directory:  config.Logging.Directory,
-		MaxSize:    10, // Default to 10MB
-		MaxBackups: 5,  // Keep 5 backup files
+		MaxSize:    config.Logging.MaxSize,
+		MaxBackups: config.Logging.MaxBackups,
 		Filename:   "app.log",
 	})
 	if err != nil {

@@ -20,6 +20,7 @@ go.work.sum
 # Binaries and distribution directories
 bin/
 dist/
+Makefile.dev
 
 # Temporary files
 client/temp.go

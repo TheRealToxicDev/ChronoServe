@@ -33,9 +33,9 @@ func InitAuth(cfg AuthConfig) {
 	var err error
 	appCfg := utils.GetConfig()
 	logger, err = utils.NewLogger(utils.LoggerOptions{
-		Level:      utils.INFO,
-		MaxSize:    10,
-		MaxBackups: 5,
+		Level:      utils.GetLogLevel(appCfg.Logging.Level),
+		MaxSize:    appCfg.Logging.MaxSize,
+		MaxBackups: appCfg.Logging.MaxBackups,
 		Directory:  appCfg.Logging.Directory,
 		Filename:   "auth.log",
 	})
