@@ -12,7 +12,7 @@
 We take security seriously at ChronoServe. Please follow these steps to report security issues:
 
 1. **DO NOT** open public issues for security vulnerabilities
-2. Send reports to [security@example.com](mailto:security@example.com)
+2. Report issues - [here](https://github.com/therealtoxicdev/chronoserve/issues)
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
