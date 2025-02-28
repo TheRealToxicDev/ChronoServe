@@ -85,9 +85,9 @@ func (l *Logger) initialize() error {
 		}
 
 		l.file = file
-		l.logger = log.New(io.MultiWriter(os.Stdout, file), "", log.LstdFlags)
+		l.logger = log.New(io.MultiWriter(os.Stdout, file), "", 0)
 	} else {
-		l.logger = log.New(os.Stdout, "", log.LstdFlags)
+		l.logger = log.New(os.Stdout, "", 0)
 	}
 
 	return nil

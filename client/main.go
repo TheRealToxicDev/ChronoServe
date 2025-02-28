@@ -18,12 +18,17 @@ import (
 
 var (
 	configFile string
-	version    string
 )
 
 func init() {
+	showVersion := flag.Bool("version", false, "Show version information")
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to configuration file")
 	flag.Parse()
+
+	if *showVersion {
+		utils.PrintVersionInfo()
+		os.Exit(0)
+	}
 }
 
 func main() {
@@ -87,7 +92,10 @@ func main() {
 	}()
 
 	// Start server
-	logger.Info("Starting ChronoServe v%s on %s", version, srv.Addr)
+	logger.Info("ChronoServe is online and awaiting requests")
+	logger.Info("Listening on %s:%d", config.Server.Host, config.Server.Port)
+	logger.Info("Current Version: v%s", utils.Version)
+
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("Server failed to start: %v", err)
 		os.Exit(1)
