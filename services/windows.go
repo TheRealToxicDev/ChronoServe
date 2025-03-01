@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"sync"
 	"time"
 
@@ -112,12 +113,38 @@ func (s *WindowsService) ViewServiceLogs(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Get the number of lines to return, default to 100
+	lines := 100
+	if linesParam := r.URL.Query().Get("lines"); linesParam != "" {
+		if n, err := strconv.Atoi(linesParam); err == nil && n > 0 {
+			lines = n
+		}
+	}
+
 	script := fmt.Sprintf(`
-        Get-WinEvent -FilterHashtable @{
-            LogName = 'Application'
-            ProviderName = '%s'
-        } -MaxEvents 100 | Select-Object TimeCreated, LevelDisplayName, Message | ConvertTo-Json
-    `, name)
+        $service = Get-WmiObject -Class Win32_Service -Filter "Name='%s'"
+        if ($service -eq $null) {
+            Write-Error "Service not found"
+            exit 1
+        }
+
+        $logs = Get-WinEvent -FilterHashtable @{
+            LogName = 'System'
+            ID = @(7036, 7045, 7040)  # Common service-related event IDs
+            StartTime = (Get-Date).AddDays(-7)  # Last 7 days
+        } -MaxEvents %d -ErrorAction SilentlyContinue | 
+        Where-Object { $_.Message -like "*$($service.DisplayName)*" -or $_.Message -like "*%s*" } |
+        Select-Object @{Name='Time';Expression={$_.TimeCreated}}, 
+                      @{Name='Level';Expression={$_.LevelDisplayName}},
+                      @{Name='Message';Expression={$_.Message}} |
+        ConvertTo-Json
+        
+        if ($logs -eq $null) {
+            Write-Output "[]"  # Return empty array if no logs found
+        } else {
+            Write-Output $logs
+        }
+    `, name, lines, name)
 
 	out, err := s.executePowershell(script)
 	if err != nil {

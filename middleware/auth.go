@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/therealtoxicdev/chronoserve/config"
 	"github.com/therealtoxicdev/chronoserve/utils"
 )
 
@@ -24,14 +25,14 @@ type AuthConfig struct {
 }
 
 var (
-	logger *utils.Logger
-	config AuthConfig
+	logger     *utils.Logger
+	authConfig AuthConfig
 )
 
 // InitAuth initializes the authentication configuration
 func InitAuth(cfg AuthConfig) {
 	var err error
-	appCfg := utils.GetConfig()
+	appCfg := config.GetConfig()
 	logger, err = utils.NewLogger(utils.LoggerOptions{
 		Level:      utils.GetLogLevel(appCfg.Logging.Level),
 		MaxSize:    appCfg.Logging.MaxSize,
@@ -42,7 +43,7 @@ func InitAuth(cfg AuthConfig) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
-	config = cfg
+	authConfig = cfg
 }
 
 // AuthMiddleware provides JWT authentication
@@ -72,10 +73,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 func CreateToken(userID string, roles []string) (string, error) {
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.TokenDuration)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(authConfig.TokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    config.IssuedBy,
+			Issuer:    authConfig.IssuedBy,
 			Subject:   userID,
 		},
 		UserID: userID,
@@ -83,7 +84,7 @@ func CreateToken(userID string, roles []string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(config.SecretKey))
+	return token.SignedString([]byte(authConfig.SecretKey))
 }
 
 func validateToken(tokenString string) (*Claims, error) {
@@ -91,7 +92,7 @@ func validateToken(tokenString string) (*Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(config.SecretKey), nil
+		return []byte(authConfig.SecretKey), nil
 	})
 
 	if err != nil {

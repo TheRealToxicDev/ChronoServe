@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/therealtoxicdev/chronoserve/config"
 	"github.com/therealtoxicdev/chronoserve/utils"
 )
 
@@ -59,8 +60,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // validateCredentials checks if the provided credentials are valid against the config
-func validateCredentials(username, password string) (*utils.Credentials, bool) {
-	config := utils.GetConfig()
+func validateCredentials(username, password string) (*config.Credentials, bool) {
+	config := config.GetConfig()
 
 	// Check if user exists
 	user, exists := config.Auth.Users[username]
@@ -70,7 +71,13 @@ func validateCredentials(username, password string) (*utils.Credentials, bool) {
 	}
 
 	// Validate password
-	if user.Password != password {
+	valid, err := user.VerifyPassword(password)
+	if err != nil {
+		logger.Error("Password verification error: %v", err)
+		return nil, false
+	}
+
+	if !valid {
 		logger.Debug("Invalid password for user: %s", username)
 		return nil, false
 	}

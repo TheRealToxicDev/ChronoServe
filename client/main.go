@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/therealtoxicdev/chronoserve/api"
+	"github.com/therealtoxicdev/chronoserve/config"
 	"github.com/therealtoxicdev/chronoserve/middleware"
 	"github.com/therealtoxicdev/chronoserve/utils"
 )
@@ -33,11 +34,11 @@ func init() {
 
 func main() {
 	// Initialize configuration
-	if err := utils.InitConfig(configFile); err != nil {
+	if err := config.InitConfig(configFile); err != nil {
 		log.Fatalf("Failed to initialize configuration: %v", err)
 	}
 
-	config := utils.GetConfig()
+	config := config.GetConfig()
 
 	// Initialize logger
 	logger, err := utils.NewLogger(utils.LoggerOptions{
