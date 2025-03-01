@@ -1,5 +1,8 @@
 # ChronoServe API Reference
 
+## Base URL
+Default: `http://localhost:40200`
+
 ## Authentication
 
 All protected endpoints require a JWT token in the Authorization header.
@@ -9,21 +12,19 @@ Authorization: Bearer your-jwt-token
 ```
 
 ### Login
-
-Authenticate and receive a JWT token.
-
 ```http
 POST /auth/login
 
 Request Body:
 {
-    "username": "string",
-    "password": "string"
+    "username": "admin",
+    "password": "your-password"
 }
 
 Response (200 OK):
 {
-    "status": "success",
+    "success": true,
+    "message": "Login successful",
     "data": {
         "token": "eyJhbGciOiJ...",
         "roles": ["admin"]
@@ -32,165 +33,215 @@ Response (200 OK):
 
 Response (401 Unauthorized):
 {
-    "status": "error",
-    "message": "Invalid credentials",
-    "code": 401
+    "success": false,
+    "error": "Invalid credentials"
 }
 ```
 
 ## Service Management
 
 ### List Services
-
-Returns a list of all available services.
-
 ```http
 GET /services
 
+Headers:
+    Authorization: Bearer your-jwt-token
+
 Response (200 OK):
 {
-    "status": "success",
-    "data": {
-        "services": [
-            {
-                "name": "string",
-                "description": "string",
-                "status": "running|stopped|unknown",
-                "enabled": boolean
-            }
-        ]
-    }
+    "success": true,
+    "message": "Services retrieved successfully",
+    "data": [
+        {
+            "Name": "service_name",
+            "DisplayName": "Service Display Name",
+            "Status": "Running"
+        }
+    ]
 }
 ```
 
-### Get Service Status
-
-Get the current status of a specific service.
-
+### View Service Logs
 ```http
-GET /services/status/{name}
+GET /services/logs/{service_name}
+
+Headers:
+    Authorization: Bearer your-jwt-token
+
+Query Parameters:
+    lines (optional): Number of lines to return (default: 100)
 
 Response (200 OK):
 {
-    "status": "success",
-    "data": {
-        "name": "string",
-        "status": "running|stopped|unknown",
-        "enabled": boolean,
-        "description": "string"
-    }
+    "success": true,
+    "message": "Logs retrieved successfully",
+    "data": [
+        {
+            "Time": "2025-02-28T22:03:26.010Z",
+            "Level": "Information",
+            "Message": "Service log entry"
+        }
+    ]
 }
 ```
 
 ### Start Service
-
-Start a specific service (admin only).
-
 ```http
-POST /services/start/{name}
+POST /services/start/{service_name}
+
+Headers:
+    Authorization: Bearer your-jwt-token
+    
+Required Role: admin
 
 Response (200 OK):
 {
-    "status": "success",
+    "success": true,
     "message": "Service started successfully"
 }
 
 Response (403 Forbidden):
 {
-    "status": "error",
-    "message": "Insufficient permissions",
-    "code": 403
+    "success": false,
+    "error": "Insufficient permissions"
 }
 ```
 
 ### Stop Service
-
-Stop a specific service (admin only).
-
 ```http
-POST /services/stop/{name}
+POST /services/stop/{service_name}
+
+Headers:
+    Authorization: Bearer your-jwt-token
+    
+Required Role: admin
 
 Response (200 OK):
 {
-    "status": "success",
+    "success": true,
     "message": "Service stopped successfully"
 }
 ```
 
-### View Service Logs
-
-Retrieve logs for a specific service.
-
+### Get Service Status
 ```http
-GET /services/logs/{name}
+GET /services/status/{service_name}
 
-Query Parameters:
-- lines (optional): Number of lines to return (default: 100)
-- since (optional): Return logs since timestamp (ISO 8601)
+Headers:
+    Authorization: Bearer your-jwt-token
 
 Response (200 OK):
 {
-    "status": "success",
+    "success": true,
+    "message": "Service status retrieved successfully",
     "data": {
-        "logs": [
-            {
-                "timestamp": "2025-02-28T15:04:05Z",
-                "level": "string",
-                "message": "string"
-            }
-        ]
+        "Name": "service_name",
+        "DisplayName": "Service Display Name",
+        "Status": "Running"
     }
 }
 ```
 
 ## Health Check
-
-Check the API server's health status.
-
 ```http
 GET /health
 
 Response (200 OK):
 {
-    "status": "success",
+    "success": true,
     "data": {
         "status": "healthy",
-        "version": "1.0.0",
-        "uptime": "24h0m0s"
+        "uptime": "1h2m3s",
+        "version": "0.1.0",
+        "goVersion": "go1.23.1",
+        "memory": {
+            "alloc": 1234567,
+            "totalAlloc": 2345678,
+            "sys": 3456789,
+            "numGC": 12,
+            "heapInUse": 45.67
+        },
+        "startTime": "2025-02-28T22:00:00Z"
     }
 }
 ```
 
 ## Error Responses
-
-Common error response format:
-
 ```http
 {
-    "status": "error",
-    "message": "Error description",
-    "code": number
+    "success": false,
+    "error": "Error description"
 }
 ```
 
-### HTTP Status Codes
+## Role-Based Access
+- `admin`: Full access to all endpoints
+- `viewer`: Read-only access (list services, view logs, get status)
 
-| Code | Description |
-|------|-------------|
-| 200  | Success |
-| 400  | Bad Request |
-| 401  | Unauthorized |
-| 403  | Forbidden |
-| 404  | Not Found |
-| 500  | Internal Server Error |
+## Configuration
+The application uses a YAML configuration file (`config.yaml`) with the following structure:
 
-## Rate Limiting
+```yaml
+server:
+    host: localhost
+    port: 40200
+    readTimeout: 15s
+    writeTimeout: 15s
+    maxHeaderBytes: 1048576
+auth:
+    secretKey: your-secret-key
+    tokenDuration: 24h0m0s
+    issuedBy: ChronoServe
+    allowedRoles:
+        - admin
+        - viewer
+    users:
+        admin:
+            username: admin
+            password_hash: "$argon2id$v=19$..."
+            roles:
+                - admin
+logging:
+    level: debug
+    directory: logs
+    maxSize: 10
+    maxBackups: 5
+    maxAge: 30
+    compress: true
+```
 
-- 100 requests per minute for authenticated users
-- 10 requests per minute for unauthenticated endpoints
-- Rate limit headers included in responses:
-```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 99
-X-RateLimit-Reset: 1735689600
+## Examples
+
+### PowerShell Authentication
+```powershell
+$body = @{
+    username = "admin"
+    password = "your-password"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri "http://localhost:40200/auth/login" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body
+
+$token = $response.data.token
+
+# Use token in subsequent requests
+$headers = @{
+    Authorization = "Bearer $token"
+}
+
+# Example: List services
+Invoke-RestMethod -Uri "http://localhost:40200/services" -Headers $headers
+```
+
+### Common Windows Services
+- Windows Update (`wuauserv`)
+- Event Log (`EventLog`)
+- Windows Remote Management (`WinRM`)
+- Background Intelligent Transfer (`BITS`)
+
+Example viewing Windows Update service logs:
+```powershell
+Invoke-RestMethod -Uri "http://localhost:40200/services/logs/wuauserv?lines=50" -Headers $headers
 ```

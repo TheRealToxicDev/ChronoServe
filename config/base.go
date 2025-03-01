@@ -26,7 +26,7 @@ func InitConfig(filePath string) error {
 		// Create new config with defaults
 		config = defaultConfig
 
-		if err := SaveConfig(filePath); err != nil {
+		if err := saveConfigInternal(filePath); err != nil {
 			return fmt.Errorf("error creating initial config: %w", err)
 		}
 
@@ -53,16 +53,6 @@ func InitConfig(filePath string) error {
 	return config.Validate()
 }
 
-func initializeDefaultPasswords() error {
-	if err := config.SetUserPassword("admin", "change-me-admin"); err != nil {
-		return fmt.Errorf("failed to set admin password: %w", err)
-	}
-	if err := config.SetUserPassword("viewer", "change-me-viewer"); err != nil {
-		return fmt.Errorf("failed to set viewer password: %w", err)
-	}
-	return nil
-}
-
 // Validate validates the configuration
 func (c *Config) Validate() error {
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
@@ -79,10 +69,11 @@ func (c *Config) Validate() error {
 
 	// Validate user credentials
 	for username, creds := range c.Auth.Users {
-		if creds.PasswordHash == "" {
-			return fmt.Errorf("user %s has no password hash set", username)
+		// Allow either password or password_hash during validation
+		if creds.Password == "" && creds.PasswordHash == "" {
+			return fmt.Errorf("user %s has no password set", username)
 		}
-		if !strings.HasPrefix(creds.PasswordHash, "$argon2id$") {
+		if creds.PasswordHash != "" && !strings.HasPrefix(creds.PasswordHash, "$argon2id$") {
 			return fmt.Errorf("user %s has invalid password hash format", username)
 		}
 		if len(creds.Roles) == 0 {
@@ -97,24 +88,6 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// SetUserPassword updates a user's password with a secure hash
-func (c *Config) SetUserPassword(username, password string) error {
-	configLock.Lock()
-	defer configLock.Unlock()
-
-	user, exists := c.Auth.Users[username]
-	if !exists {
-		return fmt.Errorf("user not found: %s", username)
-	}
-
-	if err := user.SetPassword(password); err != nil {
-		return fmt.Errorf("failed to set password: %w", err)
-	}
-
-	c.Auth.Users[username] = user
-	return SaveConfig(configPath)
-}
-
 // processPlainPasswords hashes any plain text passwords in the configuration
 func processPlainPasswords() error {
 	configLock.Lock()
@@ -124,8 +97,8 @@ func processPlainPasswords() error {
 
 	// Check each user's password
 	for username, user := range config.Auth.Users {
-		// If there's a plain password and no hash
-		if user.Password != "" && user.PasswordHash == "" {
+		// If there's a plain password
+		if user.Password != "" {
 			// Hash the password
 			if err := user.SetPassword(user.Password); err != nil {
 				return fmt.Errorf("failed to hash password for user %s: %w", username, err)
@@ -139,12 +112,30 @@ func processPlainPasswords() error {
 
 	// If any passwords were changed, save the config
 	if passwordsChanged {
-		if err := SaveConfig(configPath); err != nil {
+		if err := saveConfigInternal(configPath); err != nil {
 			return fmt.Errorf("failed to save hashed passwords: %w", err)
 		}
 		fmt.Println("\n=== Security Update ===")
-		fmt.Println("Your config.yaml file has been updated with hashed passwords.")
-		fmt.Println("Please use the new hashed passwords for authentication.")
+		fmt.Println("Plain text passwords detected in the config.yaml file, which have been hashed.")
+		fmt.Println("Please use the new hashed password for authentication with the API.")
+	}
+
+	return nil
+}
+
+// Internal function to save config without acquiring locks
+func saveConfigInternal(filePath string) error {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("error marshaling config: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return fmt.Errorf("error creating config directory: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("error writing config file: %w", err)
 	}
 
 	return nil
@@ -182,23 +173,9 @@ func LoadConfig(filePath string) error {
 
 // SaveConfig saves the current configuration to a YAML file
 func SaveConfig(filePath string) error {
-	configLock.RLock()
-	defer configLock.RUnlock()
-
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("error marshaling config: %w", err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return fmt.Errorf("error creating config directory: %w", err)
-	}
-
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("error writing config file: %w", err)
-	}
-
-	return nil
+	configLock.Lock()
+	defer configLock.Unlock()
+	return saveConfigInternal(filePath)
 }
 
 // UpdateConfig updates the configuration and optionally saves it to disk
@@ -213,7 +190,7 @@ func UpdateConfig(newConfig Config, save bool) error {
 	config = newConfig
 
 	if save {
-		return SaveConfig("config.yaml")
+		return saveConfigInternal(configPath)
 	}
 	return nil
 }

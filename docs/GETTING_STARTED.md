@@ -16,13 +16,11 @@ Download the latest prebuilt binary for your platform from the [Releases](https:
 #### Windows
 ```powershell
 # PowerShell (as Administrator)
-# Download the latest Windows binary
 Invoke-WebRequest -Uri "https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_windows_amd64.exe" -OutFile "chronoserve.exe"
 ```
 
 #### Linux
 ```bash
-# Download the latest Linux binary
 wget https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_linux_amd64
 chmod +x chronoserve_linux_amd64
 ```
@@ -42,112 +40,164 @@ make build
 
 ## Configuration
 
-On first run, ChronoServe will automatically create a `config.yaml` in the project root with default values. You **must** update the security-sensitive values before running the application.
+On first run, ChronoServe will create a `config.yaml` file with default values. You **must** update the security-sensitive values before using the application in production.
 
 ### Default Configuration Structure
 
 ```yaml
 server:
-  host: "localhost"
-  port: 8080
-  readTimeout: "15s"
-  writeTimeout: "15s"
-  maxHeaderBytes: 1048576  # 1MB
+    host: "localhost"
+    port: 40200          # Default port
+    readTimeout: "15s"
+    writeTimeout: "15s"
+    maxHeaderBytes: 1048576
 
 auth:
-  secretKey: "change-me"      # Must be changed
-  tokenDuration: 24h
-  issuedBy: "ChronoServe"
-  allowedRoles: ["admin", "viewer"]
-  users:
-    admin:
-      username: "admin"
-      password: "change-me"   # Must be changed
-      roles: ["admin"]
-    viewer:
-      username: "viewer"
-      password: "change-me"   # Must be changed
-      roles: ["viewer"]
+    secretKey: "change-me"      # Must be changed
+    tokenDuration: 24h
+    issuedBy: "ChronoServe"
+    allowedRoles:
+        - admin
+        - viewer
+    users:
+        admin:
+            username: "admin"
+            password: "change-me"   # Will be hashed after first run
+            roles:
+                - admin
+        viewer:
+            username: "viewer"
+            password: "change-me"   # Will be hashed after first run
+            roles:
+                - viewer
 
 logging:
-  level: "info"
-  directory: "logs"
-  maxSize: 10        # 10MB
-  maxBackups: 5
-  maxAge: 30         # 30 days
-  compress: true
-```
+    level: "debug"
+    directory: "logs"
+    maxSize: 10        # 10MB
+    maxBackups: 5
+    maxAge: 30         # 30 days
+    compress: true
 
-### Platform-Specific Settings
-
-#### Windows
-```yaml
+# Platform-specific settings
 windows:
-  serviceCommand: "sc"
-  logDirectory: "C:\\ProgramData\\ChronoServe\\logs"
-  services: {}  # Will be populated with discovered services
-```
+    serviceCommand: "sc"
+    logDirectory: "C:\\ProgramData\\ChronoServe\\logs"
+    services: {}
 
-#### Linux
-```yaml
 linux:
-  serviceCommand: "systemctl"
-  logDirectory: "/var/log/chronoserve"
-  services: {}  # Will be populated with discovered services
+    serviceCommand: "systemctl"
+    logDirectory: "/var/log/chronoserve"
+    services: {}
 ```
 
 ## Running ChronoServe
 
 1. Development mode:
-```bash
+```powershell
 make dev
 ```
 
 2. Production mode:
-```bash
+```powershell
 make start
+```
+
+## Initial Setup
+
+1. Start the application for the first time:
+```powershell
+make dev
+```
+
+2. The application will:
+   - Create default config.yaml
+   - Prompt you to update security values
+   - Exit for you to make changes
+
+3. Update the config values:
+   - Change admin and viewer passwords
+   - Set a secure secret key
+   - Adjust other settings as needed
+
+4. Restart the application:
+```powershell
+make dev
 ```
 
 ## Verifying Installation
 
 1. Check the server health:
-```bash
-curl http://localhost:8080/health
+```powershell
+Invoke-RestMethod -Uri "http://localhost:40200/health"
 ```
 
 2. Try logging in:
-```bash
-curl -X POST http://localhost:8080/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "your-password"}'
+```powershell
+$body = @{
+    username = "admin"
+    password = "your-password"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri "http://localhost:40200/auth/login" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body
+
+$token = $response.data.token
 ```
 
 ## Security Notes
 
-- The application will refuse to start if default credentials are detected
-- All passwords should be changed from their default values
-- The JWT secret key must be changed from the default value
-- Use secure passwords that meet your organization's requirements
+- Default credentials will be rejected
+- Passwords are automatically hashed using Argon2id
+- Plain text passwords are removed from config after hashing
+- JWT secret key must be changed from default
+- Use strong passwords that meet your security requirements
 
-## Next Steps
+## Common Services
 
-- Review the [API Documentation](./API.md) for available endpoints
-- Configure your [Services](./SERVICES.md)
-- Set up [Logging](./LOGGING.md)
-- Review [Security Best Practices](./SECURITY.md)
+### Windows Services
+- Windows Update (`wuauserv`)
+- Event Log (`EventLog`)
+- Windows Remote Management (`WinRM`)
+- Background Intelligent Transfer (`BITS`)
+
+Example viewing service logs:
+```powershell
+$headers = @{
+    Authorization = "Bearer $token"
+}
+
+Invoke-RestMethod -Uri "http://localhost:40200/services/logs/wuauserv?lines=50" -Headers $headers
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. "Security Risk Detected":
-   - This means you haven't changed the default security values
-   - Update the `secretKey` and user passwords in `config.yaml`
+   - Update `secretKey` and user passwords in `config.yaml`
+   - Restart application
 
-2. Permission Issues:
-   - Windows: Run as Administrator
-   - Linux: Use sudo or appropriate privileges
+2. "Invalid credentials":
+   - Ensure you're using the correct password
+   - Check if password was properly hashed after first run
 
-3. Port Already in Use:
-   - Change the port in `config.yaml`
-   - Default is 8080
+3. Permission Issues:
+   - Run as Administrator on Windows
+   - Use sudo on Linux
+
+4. Port Already in Use:
+   - Change the port in `config.yaml` (default: 40200)
+   - Check for other applications using the port
+
+## Next Steps
+
+- Review the [API Documentation](API_REFERENCE.md)
+- Read [Complete Documentation](DOCUMENTATION.md)
+- Learn about [Security Best Practices](../SECURITY.md)
+
+## Support
+
+For issues and feature requests, please visit the [GitHub repository](https://github.com/therealtoxicdev/chronoserve).
