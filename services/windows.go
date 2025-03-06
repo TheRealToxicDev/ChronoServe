@@ -19,17 +19,73 @@ var _ ServiceHandler = (*WindowsService)(nil)
 // WindowsService implements the ServiceHandler interface for Windows
 type WindowsService struct {
 	BaseServiceHandler
-	cache      map[string]ServiceStatus
-	cacheMutex sync.RWMutex
-	cacheTTL   time.Duration
+	cache             map[string]ServiceStatus
+	cacheMutex        sync.RWMutex
+	cacheTTL          time.Duration
+	protectedServices map[string]bool // Added protected services map
+}
+
+// List of Windows services that are critical to system operation and should be protected
+var criticalWindowsServices = []string{
+	"wininit",           // Windows Start-Up Application
+	"csrss",             // Client Server Runtime Process
+	"services",          // Services and Controller app
+	"lsass",             // Local Security Authority Process
+	"winlogon",          // Windows Logon
+	"smss",              // Windows Session Manager
+	"svchost",           // Service Host
+	"spooler",           // Print Spooler
+	"explorer",          // Windows Explorer
+	"fontdrvhost",       // Font Driver Host
+	"dwm",               // Desktop Window Manager
+	"taskmgr",           // Task Manager
+	"conhost",           // Console Window Host
+	"dllhost",           // COM Surrogate
+	"audiodg",           // Windows Audio Device Graph Isolation
+	"wuauserv",          // Windows Update
+	"EventLog",          // Windows Event Log
+	"TermService",       // Remote Desktop Services
+	"Schedule",          // Task Scheduler
+	"Dnscache",          // DNS Client
+	"BITS",              // Background Intelligent Transfer Service
+	"TrustedInstaller",  // Windows Modules Installer
+	"PcaSvc",            // Program Compatibility Assistant Service
+	"LanmanServer",      // Server
+	"LanmanWorkstation", // Workstation
+	"Dhcp",              // DHCP Client
 }
 
 // NewWindowsService creates a new Windows service handler
 func NewWindowsService() *WindowsService {
-	return &WindowsService{
-		cache:    make(map[string]ServiceStatus),
-		cacheTTL: 5 * time.Minute,
+	// Initialize the protected services map
+	protectedServices := make(map[string]bool)
+	for _, service := range criticalWindowsServices {
+		protectedServices[strings.ToLower(service)] = true
 	}
+
+	return &WindowsService{
+		cache:             make(map[string]ServiceStatus),
+		cacheTTL:          5 * time.Minute,
+		protectedServices: protectedServices,
+	}
+}
+
+// IsProtectedService checks if a service is in the protected list
+func (s *WindowsService) IsProtectedService(name string) bool {
+	return s.protectedServices[strings.ToLower(name)]
+}
+
+// ValidateServiceOperation checks if operations are allowed on this service
+func (s *WindowsService) ValidateServiceOperation(name string) error {
+	if !s.ValidateServiceName(name) {
+		return fmt.Errorf("invalid service name")
+	}
+
+	if s.IsProtectedService(name) {
+		return fmt.Errorf("operation not allowed on protected system service: %s", name)
+	}
+
+	return nil
 }
 
 // ---- DATA RETURNING METHODS (NEW) ----
@@ -58,10 +114,16 @@ func (s *WindowsService) GetServices() ([]ServiceInfo, error) {
 		return nil, fmt.Errorf("failed to parse service data (%s): %v", outStr, err)
 	}
 
-	// Convert to our service info format
+	// Convert to our service info format and filter out protected services
 	services := make([]ServiceInfo, 0, len(rawServices))
 	for _, svc := range rawServices {
 		name, _ := svc["Name"].(string)
+
+		// Skip protected services
+		if s.IsProtectedService(name) {
+			continue
+		}
+
 		displayName, _ := svc["DisplayName"].(string)
 		status, _ := svc["Status"].(string)
 
@@ -77,8 +139,8 @@ func (s *WindowsService) GetServices() ([]ServiceInfo, error) {
 
 // GetServiceStatusByName gets the current status of a Windows service by name
 func (s *WindowsService) GetServiceStatusByName(name string) (*ServiceStatus, error) {
-	if !s.ValidateServiceName(name) {
-		return nil, fmt.Errorf("invalid service name")
+	if err := s.ValidateServiceOperation(name); err != nil {
+		return nil, err
 	}
 
 	// Check cache first
@@ -155,8 +217,8 @@ func (s *WindowsService) GetServiceStatusByName(name string) (*ServiceStatus, er
 
 // StartServiceByName starts a Windows service by name
 func (s *WindowsService) StartServiceByName(name string) error {
-	if !s.ValidateServiceName(name) {
-		return fmt.Errorf("invalid service name")
+	if err := s.ValidateServiceOperation(name); err != nil {
+		return err
 	}
 
 	script := fmt.Sprintf(`
@@ -185,8 +247,8 @@ func (s *WindowsService) StartServiceByName(name string) error {
 
 // StopServiceByName stops a Windows service by name
 func (s *WindowsService) StopServiceByName(name string) error {
-	if !s.ValidateServiceName(name) {
-		return fmt.Errorf("invalid service name")
+	if err := s.ValidateServiceOperation(name); err != nil {
+		return err
 	}
 
 	script := fmt.Sprintf(`
@@ -215,8 +277,8 @@ func (s *WindowsService) StopServiceByName(name string) error {
 
 // GetServiceLogs retrieves logs for a Windows service
 func (s *WindowsService) GetServiceLogs(name string, lines int) ([]LogEntry, error) {
-	if !s.ValidateServiceName(name) {
-		return nil, fmt.Errorf("invalid service name")
+	if err := s.ValidateServiceOperation(name); err != nil {
+		return nil, err
 	}
 
 	if lines <= 0 {
@@ -296,6 +358,11 @@ func (s *WindowsService) StartService(w http.ResponseWriter, r *http.Request) {
 
 	err := s.StartServiceByName(name)
 	if err != nil {
+		// Return forbidden status for protected services instead of internal error
+		if strings.Contains(err.Error(), "protected system service") {
+			utils.WriteErrorResponse(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -314,6 +381,11 @@ func (s *WindowsService) StopService(w http.ResponseWriter, r *http.Request) {
 
 	err := s.StopServiceByName(name)
 	if err != nil {
+		// Return forbidden status for protected services instead of internal error
+		if strings.Contains(err.Error(), "protected system service") {
+			utils.WriteErrorResponse(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -340,6 +412,11 @@ func (s *WindowsService) ViewServiceLogs(w http.ResponseWriter, r *http.Request)
 
 	logs, err := s.GetServiceLogs(name, lines)
 	if err != nil {
+		// Return forbidden status for protected services instead of internal error
+		if strings.Contains(err.Error(), "protected system service") {
+			utils.WriteErrorResponse(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -358,6 +435,11 @@ func (s *WindowsService) GetServiceStatus(w http.ResponseWriter, r *http.Request
 
 	status, err := s.GetServiceStatusByName(name)
 	if err != nil {
+		// Return forbidden status for protected services instead of internal error
+		if strings.Contains(err.Error(), "protected system service") {
+			utils.WriteErrorResponse(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
