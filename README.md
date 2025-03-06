@@ -1,5 +1,5 @@
 <h2 align='center'>
-  <img src="https://elixir.makesmehorny.wtf/users/510065483693817867/ibBmQrYj.png" height='150px' width='150px'/>
+  <img src="https://elixir.makesmehorny.wtf/users/510065483693817867/ibBmQrYj.png" height='200px' width='350px'/>
   <br> 
 </h2>
 
