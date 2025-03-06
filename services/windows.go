@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/toxic-development/sysmanix/utils"
 )
+
+// Ensure WindowsService implements ServiceHandler
+var _ ServiceHandler = (*WindowsService)(nil)
 
 // WindowsService implements the ServiceHandler interface for Windows
 type WindowsService struct {
@@ -29,32 +31,92 @@ func NewWindowsService() *WindowsService {
 	}
 }
 
-// ListServices lists all Windows services
-func (s *WindowsService) ListServices(w http.ResponseWriter, r *http.Request) {
+// ---- DATA RETURNING METHODS (NEW) ----
+
+// GetServices returns a list of all Windows services
+func (s *WindowsService) GetServices() ([]ServiceInfo, error) {
 	script := `
         Get-Service | Select-Object Name, DisplayName, Status | ConvertTo-Json
     `
 	out, err := s.executePowershell(script)
 	if err != nil {
-		s.HandleError(w, fmt.Sprintf("Failed to list services: %v", err), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to list services: %v", err)
 	}
 
-	var services []map[string]interface{}
-	if err := json.Unmarshal(out.Bytes(), &services); err != nil {
-		s.HandleError(w, "Failed to parse service data", http.StatusInternalServerError)
-		return
+	var rawServices []map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &rawServices); err != nil {
+		return nil, fmt.Errorf("failed to parse service data: %v", err)
 	}
 
-	utils.WriteSuccessResponse(w, "Services retrieved successfully", services)
+	// Convert to our service info format
+	services := make([]ServiceInfo, 0, len(rawServices))
+	for _, svc := range rawServices {
+		name, _ := svc["Name"].(string)
+		displayName, _ := svc["DisplayName"].(string)
+		status, _ := svc["Status"].(string)
+
+		services = append(services, ServiceInfo{
+			Name:        name,
+			DisplayName: displayName,
+			Status:      status,
+		})
+	}
+
+	return services, nil
 }
 
-// StartService starts a Windows service
-func (s *WindowsService) StartService(w http.ResponseWriter, r *http.Request) {
-	name := utils.ExtractServiceName(r.URL.Path)
+// GetServiceStatusByName gets the current status of a Windows service by name
+func (s *WindowsService) GetServiceStatusByName(name string) (*ServiceStatus, error) {
 	if !s.ValidateServiceName(name) {
-		s.HandleError(w, "Invalid service name", http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("invalid service name")
+	}
+
+	// Check cache first
+	s.cacheMutex.RLock()
+	if status, ok := s.cache[name]; ok {
+		if time.Since(status.UpdatedAt) < s.cacheTTL {
+			s.cacheMutex.RUnlock()
+			return &status, nil
+		}
+	}
+	s.cacheMutex.RUnlock()
+
+	script := fmt.Sprintf(`
+        Get-Service -Name "%s" | Select-Object Name, DisplayName, Status | ConvertTo-Json
+    `, name)
+
+	out, err := s.executePowershell(script)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get status for service %s: %v", name, err)
+	}
+
+	var rawStatus map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &rawStatus); err != nil {
+		return nil, fmt.Errorf("failed to parse service status: %v", err)
+	}
+
+	statusStr, _ := rawStatus["Status"].(string)
+	isActive := statusStr == "Running"
+
+	status := ServiceStatus{
+		Name:      name,
+		Status:    statusStr,
+		IsActive:  isActive,
+		UpdatedAt: time.Now(),
+	}
+
+	// Update cache
+	s.cacheMutex.Lock()
+	s.cache[name] = status
+	s.cacheMutex.Unlock()
+
+	return &status, nil
+}
+
+// StartServiceByName starts a Windows service by name
+func (s *WindowsService) StartServiceByName(name string) error {
+	if !s.ValidateServiceName(name) {
+		return fmt.Errorf("invalid service name")
 	}
 
 	script := fmt.Sprintf(`
@@ -68,21 +130,23 @@ func (s *WindowsService) StartService(w http.ResponseWriter, r *http.Request) {
         Write-Output "Service started successfully"
     `, name, name)
 
-	out, err := s.executePowershell(script)
+	_, err := s.executePowershell(script)
 	if err != nil {
-		s.HandleError(w, fmt.Sprintf("Failed to start service %s: %v", name, err), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("failed to start service %s: %v", name, err)
 	}
 
-	utils.WriteSuccessResponse(w, out.String(), nil)
+	// Invalidate cache
+	s.cacheMutex.Lock()
+	delete(s.cache, name)
+	s.cacheMutex.Unlock()
+
+	return nil
 }
 
-// StopService stops a Windows service
-func (s *WindowsService) StopService(w http.ResponseWriter, r *http.Request) {
-	name := utils.ExtractServiceName(r.URL.Path)
+// StopServiceByName stops a Windows service by name
+func (s *WindowsService) StopServiceByName(name string) error {
 	if !s.ValidateServiceName(name) {
-		s.HandleError(w, "Invalid service name", http.StatusBadRequest)
-		return
+		return fmt.Errorf("invalid service name")
 	}
 
 	script := fmt.Sprintf(`
@@ -96,29 +160,27 @@ func (s *WindowsService) StopService(w http.ResponseWriter, r *http.Request) {
         Write-Output "Service stopped successfully"
     `, name, name)
 
-	out, err := s.executePowershell(script)
+	_, err := s.executePowershell(script)
 	if err != nil {
-		s.HandleError(w, fmt.Sprintf("Failed to stop service %s: %v", name, err), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("failed to stop service %s: %v", name, err)
 	}
 
-	utils.WriteSuccessResponse(w, out.String(), nil)
+	// Invalidate cache
+	s.cacheMutex.Lock()
+	delete(s.cache, name)
+	s.cacheMutex.Unlock()
+
+	return nil
 }
 
-// ViewServiceLogs retrieves Windows service logs
-func (s *WindowsService) ViewServiceLogs(w http.ResponseWriter, r *http.Request) {
-	name := utils.ExtractServiceName(r.URL.Path)
+// GetServiceLogs retrieves logs for a Windows service
+func (s *WindowsService) GetServiceLogs(name string, lines int) ([]LogEntry, error) {
 	if !s.ValidateServiceName(name) {
-		s.HandleError(w, "Invalid service name", http.StatusBadRequest)
-		return
+		return nil, fmt.Errorf("invalid service name")
 	}
 
-	// Get the number of lines to return, default to 100
-	lines := 100
-	if linesParam := r.URL.Query().Get("lines"); linesParam != "" {
-		if n, err := strconv.Atoi(linesParam); err == nil && n > 0 {
-			lines = n
-		}
+	if lines <= 0 {
+		lines = 100 // Default to 100 lines
 	}
 
 	script := fmt.Sprintf(`
@@ -134,7 +196,7 @@ func (s *WindowsService) ViewServiceLogs(w http.ResponseWriter, r *http.Request)
             StartTime = (Get-Date).AddDays(-7)  # Last 7 days
         } -MaxEvents %d -ErrorAction SilentlyContinue | 
         Where-Object { $_.Message -like "*$($service.DisplayName)*" -or $_.Message -like "*%s*" } |
-        Select-Object @{Name='Time';Expression={$_.TimeCreated}}, 
+        Select-Object @{Name='Time';Expression={$_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')}}, 
                       @{Name='Level';Expression={$_.LevelDisplayName}},
                       @{Name='Message';Expression={$_.Message}} |
         ConvertTo-Json
@@ -148,45 +210,122 @@ func (s *WindowsService) ViewServiceLogs(w http.ResponseWriter, r *http.Request)
 
 	out, err := s.executePowershell(script)
 	if err != nil {
-		s.HandleError(w, fmt.Sprintf("Failed to retrieve logs for service %s: %v", name, err), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("failed to retrieve logs for service %s: %v", name, err)
 	}
 
-	var logs interface{}
+	// Handle both single log entry and array of logs
+	var entry LogEntry
+	if err := json.Unmarshal(out.Bytes(), &entry); err == nil {
+		return []LogEntry{entry}, nil
+	}
+
+	var logs []LogEntry
 	if err := json.Unmarshal(out.Bytes(), &logs); err != nil {
-		s.HandleError(w, "Failed to parse log data", http.StatusInternalServerError)
+		return nil, fmt.Errorf("failed to parse log data: %v", err)
+	}
+
+	return logs, nil
+}
+
+// ---- HTTP HANDLER METHODS (UPDATED) ----
+
+// ListServices lists all Windows services
+func (s *WindowsService) ListServices(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	utils.WriteSuccessResponse(w, "Logs retrieved successfully", logs)
+	services, err := s.GetServices()
+	if err != nil {
+		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteSuccessResponse(w, "Services retrieved successfully", services)
+}
+
+// StartService starts a Windows service
+func (s *WindowsService) StartService(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := utils.ExtractServiceName(r.URL.Path)
+
+	err := s.StartServiceByName(name)
+	if err != nil {
+		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteSuccessResponse(w, fmt.Sprintf("Service %s started successfully", name), nil)
+}
+
+// StopService stops a Windows service
+func (s *WindowsService) StopService(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := utils.ExtractServiceName(r.URL.Path)
+
+	err := s.StopServiceByName(name)
+	if err != nil {
+		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteSuccessResponse(w, fmt.Sprintf("Service %s stopped successfully", name), nil)
+}
+
+// ViewServiceLogs retrieves Windows service logs
+func (s *WindowsService) ViewServiceLogs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := utils.ExtractServiceName(r.URL.Path)
+
+	// Parse the number of lines from the query string
+	lines := 100 // Default
+	if linesStr := r.URL.Query().Get("lines"); linesStr != "" {
+		if parsedLines, err := utils.ParseInt(linesStr); err == nil && parsedLines > 0 {
+			lines = parsedLines
+		}
+	}
+
+	logs, err := s.GetServiceLogs(name, lines)
+	if err != nil {
+		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteSuccessResponse(w, "Service logs retrieved successfully", logs)
 }
 
 // GetServiceStatus gets the current status of a Windows service
 func (s *WindowsService) GetServiceStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	name := utils.ExtractServiceName(r.URL.Path)
-	if !s.ValidateServiceName(name) {
-		s.HandleError(w, "Invalid service name", http.StatusBadRequest)
-		return
-	}
 
-	script := fmt.Sprintf(`
-        Get-Service -Name "%s" | Select-Object Name, DisplayName, Status | ConvertTo-Json
-    `, name)
-
-	out, err := s.executePowershell(script)
+	status, err := s.GetServiceStatusByName(name)
 	if err != nil {
-		s.HandleError(w, fmt.Sprintf("Failed to get status for service %s: %v", name, err), http.StatusInternalServerError)
-		return
-	}
-
-	var status interface{}
-	if err := json.Unmarshal(out.Bytes(), &status); err != nil {
-		s.HandleError(w, "Failed to parse service status", http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccessResponse(w, "Service status retrieved successfully", status)
 }
+
+// ---- HELPER METHODS ----
 
 // executePowershell executes a PowerShell script and returns its output
 func (s *WindowsService) executePowershell(script string) (*bytes.Buffer, error) {
@@ -201,4 +340,9 @@ func (s *WindowsService) executePowershell(script string) (*bytes.Buffer, error)
 	}
 
 	return &out, nil
+}
+
+// HandleError handles error responses for the service
+func (s *WindowsService) HandleError(w http.ResponseWriter, message string, statusCode int) {
+	utils.WriteErrorResponse(w, message, statusCode)
 }

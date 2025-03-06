@@ -7,18 +7,19 @@ import (
 	"github.com/toxic-development/sysmanix/utils"
 )
 
-// @Summary      Start a system service
-// @Description  Starts the specified system service
+// @Summary      Get service logs
+// @Description  Returns logs for the specified service
 // @Tags         services
 // @Accept       json
 // @Produce      json
-// @Param        name  path  string  true  "Service name"
-// @Success      200  {object}  ServiceActionResponse
+// @Param        name   path    string  true   "Service name"
+// @Param        lines  query   int     false  "Number of log lines to return (default: 100)"
+// @Success      200  {object}  ServiceLogsResponse
 // @Failure      400  {object}  utils.ErrorResponse
 // @Failure      500  {object}  utils.ErrorResponse
 // @Security     BearerAuth
-// @Router       /services/start/{name} [post]
-func StartService(w http.ResponseWriter, r *http.Request) {
+// @Router       /services/logs/{name} [get]
+func ViewServiceLogs(w http.ResponseWriter, r *http.Request) {
 	var serviceHandler services.ServiceHandler
 
 	// Choose the appropriate handler based on OS
@@ -32,5 +33,5 @@ func StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceHandler.StartService(w, r)
+	serviceHandler.ViewServiceLogs(w, r)
 }

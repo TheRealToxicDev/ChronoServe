@@ -25,6 +25,9 @@ func registerLinuxServiceRoutes(mux *http.ServeMux) {
 	// Protected service endpoints
 	registerRouteWithMiddleware(mux, "services", services.ListServices, true, []string{"admin", "viewer"})
 	registerRouteWithMiddleware(mux, "services/start/", services.StartService, true, []string{"admin"})
+	registerRouteWithMiddleware(mux, "services/stop/", services.StopService, true, []string{"admin"})
+	registerRouteWithMiddleware(mux, "services/logs/", services.ViewServiceLogs, true, []string{"admin", "viewer"})
+	registerRouteWithMiddleware(mux, "services/status/", services.GetServiceStatus, true, []string{"admin", "viewer"})
 }
 
 // Register Windows-specific service routes
@@ -32,4 +35,7 @@ func registerWindowsServiceRoutes(mux *http.ServeMux) {
 	// Protected service endpoints - same handlers but could be different if needed
 	registerRouteWithMiddleware(mux, "services", services.ListServices, true, []string{"admin", "viewer"})
 	registerRouteWithMiddleware(mux, "services/start/", services.StartService, true, []string{"admin"})
+	registerRouteWithMiddleware(mux, "services/stop/", services.StopService, true, []string{"admin"})
+	registerRouteWithMiddleware(mux, "services/logs/", services.ViewServiceLogs, true, []string{"admin", "viewer"})
+	registerRouteWithMiddleware(mux, "services/status/", services.GetServiceStatus, true, []string{"admin", "viewer"})
 }

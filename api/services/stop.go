@@ -7,8 +7,8 @@ import (
 	"github.com/toxic-development/sysmanix/utils"
 )
 
-// @Summary      Start a system service
-// @Description  Starts the specified system service
+// @Summary      Stop a system service
+// @Description  Stops the specified system service
 // @Tags         services
 // @Accept       json
 // @Produce      json
@@ -17,8 +17,8 @@ import (
 // @Failure      400  {object}  utils.ErrorResponse
 // @Failure      500  {object}  utils.ErrorResponse
 // @Security     BearerAuth
-// @Router       /services/start/{name} [post]
-func StartService(w http.ResponseWriter, r *http.Request) {
+// @Router       /services/stop/{name} [post]
+func StopService(w http.ResponseWriter, r *http.Request) {
 	var serviceHandler services.ServiceHandler
 
 	// Choose the appropriate handler based on OS
@@ -32,5 +32,5 @@ func StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceHandler.StartService(w, r)
+	serviceHandler.StopService(w, r)
 }

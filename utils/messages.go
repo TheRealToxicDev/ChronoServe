@@ -5,12 +5,18 @@ import (
 	"net/http"
 )
 
-// Response represents a standard API response format
-type Response struct {
-	Success bool        `json:"success"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+// ErrorResponse represents an error response structure
+type ErrorResponse struct {
+	Status  string `json:"status" example:"error"`
+	Message string `json:"message" example:"An error occurred while processing your request"`
+	Code    int    `json:"code,omitempty" example:"404"`
+}
+
+// SuccessResponse represents a success response structure
+type SuccessResponse struct {
+	Status  string `json:"status" example:"success"`
+	Message string `json:"message" example:"Operation completed successfully"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // WriteJSON writes a JSON response with proper headers
@@ -28,8 +34,8 @@ func WriteJSON(w http.ResponseWriter, data interface{}, statusCode int) {
 
 // WriteSuccessResponse writes a successful JSON response
 func WriteSuccessResponse(w http.ResponseWriter, message string, data interface{}) {
-	response := Response{
-		Success: true,
+	response := SuccessResponse{
+		Status:  "success",
 		Message: message,
 		Data:    data,
 	}
@@ -38,9 +44,10 @@ func WriteSuccessResponse(w http.ResponseWriter, message string, data interface{
 
 // WriteErrorResponse writes a JSON error response
 func WriteErrorResponse(w http.ResponseWriter, message string, statusCode int) {
-	response := Response{
-		Success: false,
-		Error:   message,
+	response := ErrorResponse{
+		Status:  "error",
+		Message: message,
+		Code:    statusCode,
 	}
 	WriteJSON(w, response, statusCode)
 }
@@ -58,4 +65,10 @@ func WriteInternalError(w http.ResponseWriter, err error) {
 		message = err.Error()
 	}
 	WriteErrorResponse(w, message, http.StatusInternalServerError)
+}
+
+// WriteJSONResponse writes a raw JSON response to the client
+// Useful when you need to send a completely custom structure
+func WriteJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
+	WriteJSON(w, data, statusCode)
 }
