@@ -1,8 +1,8 @@
-# ChronoServe Authentication System
+# SysManix Authentication System
 
 ## Overview
 
-ChronoServe uses a JWT-based authentication system with Argon2id password hashing for secure user management.
+SysManix uses a JWT-based authentication system with Argon2id password hashing for secure user management.
 
 ## Password Security
 
@@ -60,7 +60,7 @@ The Argon2id hash format follows: `$argon2id$v=[version]$m=[memory],t=[time],p=[
     "roles": ["admin"],
     "exp": 1735689600,
     "iat": 1735603200,
-    "iss": "ChronoServe"
+    "iss": "SysManix"
   }
 }
 ```

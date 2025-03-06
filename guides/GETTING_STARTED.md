@@ -1,4 +1,4 @@
-# Getting Started with ChronoServe
+# Getting Started with SysManix
 
 ## Prerequisites
 
@@ -11,26 +11,26 @@
 
 ### Option 1: Prebuilt Binaries (Recommended)
 
-Download the latest prebuilt binary for your platform from the [Releases](https://github.com/therealtoxicdev/chronoserve/releases) page:
+Download the latest prebuilt binary for your platform from the [Releases](https://github.com/toxic-development/SysManix/releases) page:
 
 #### Windows
 ```powershell
 # PowerShell (as Administrator)
-Invoke-WebRequest -Uri "https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_windows_amd64.exe" -OutFile "chronoserve.exe"
+Invoke-WebRequest -Uri "https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_windows_amd64.exe" -OutFile "SysManix.exe"
 ```
 
 #### Linux
 ```bash
-wget https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_linux_amd64
-chmod +x chronoserve_linux_amd64
+wget https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_linux_amd64
+chmod +x SysManix_linux_amd64
 ```
 
 ### Option 2: Build from Source
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/therealtoxicdev/chronoserve.git
-cd chronoserve
+git clone https://github.com/toxic-development/SysManix.git
+cd SysManix
 ```
 
 2. Build the project:
@@ -40,7 +40,7 @@ make build
 
 ## Configuration
 
-On first run, ChronoServe will create a `config.yaml` file with default values. You **must** update the security-sensitive values before using the application in production.
+On first run, SysManix will create a `config.yaml` file with default values. You **must** update the security-sensitive values before using the application in production.
 
 ### Default Configuration Structure
 
@@ -55,7 +55,7 @@ server:
 auth:
     secretKey: "change-me"      # Must be changed
     tokenDuration: 24h
-    issuedBy: "ChronoServe"
+    issuedBy: "SysManix"
     allowedRoles:
         - admin
         - viewer
@@ -82,16 +82,16 @@ logging:
 # Platform-specific settings
 windows:
     serviceCommand: "sc"
-    logDirectory: "C:\\ProgramData\\ChronoServe\\logs"
+    logDirectory: "C:\\ProgramData\\SysManix\\logs"
     services: {}
 
 linux:
     serviceCommand: "systemctl"
-    logDirectory: "/var/log/chronoserve"
+    logDirectory: "/var/log/SysManix"
     services: {}
 ```
 
-## Running ChronoServe
+## Running SysManix
 
 1. Development mode:
 ```powershell
@@ -200,4 +200,4 @@ Invoke-RestMethod -Uri "http://localhost:40200/services/logs/wuauserv?lines=50" 
 
 ## Support
 
-For issues and feature requests, please visit the [GitHub repository](https://github.com/therealtoxicdev/chronoserve).
+For issues and feature requests, please visit the [GitHub repository](https://github.com/toxic-development/SysManix).

@@ -1,4 +1,4 @@
-# ChronoServe Troubleshooting Guide
+# SysManix Troubleshooting Guide
 
 ## Common Issues
 
@@ -180,7 +180,7 @@ Invoke-RestMethod -Uri "http://localhost:40200/health"
 # PowerShell
 Get-Service wuauserv  # Check actual service status
 
-# ChronoServe
+# SysManix
 $headers = @{
     Authorization = "Bearer $token"
 }
@@ -210,5 +210,5 @@ Invoke-RestMethod -Uri "http://localhost:40200/services/status/wuauserv" -Header
    - [Configuration Guide](DOCUMENTATION.md#configuration)
 
 3. Report Issues:
-   - GitHub Issues: [ChronoServe Repository](https://github.com/therealtoxicdev/chronoserve)
+   - GitHub Issues: [SysManix Repository](https://github.com/toxic-development/SysManix)
    - Include logs and configuration (remove sensitive data)

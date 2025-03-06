@@ -1,4 +1,4 @@
-# ChronoServe API Reference
+# SysManix API Reference
 
 ## Base URL
 Default: `http://localhost:40200`
@@ -191,7 +191,7 @@ server:
 auth:
     secretKey: your-secret-key
     tokenDuration: 24h0m0s
-    issuedBy: ChronoServe
+    issuedBy: SysManix
     allowedRoles:
         - admin
         - viewer

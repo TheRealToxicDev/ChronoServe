@@ -1,12 +1,12 @@
-# ChronoServe Version Management
+# SysManix Version Management
 
 ## Checking Your Version
 
-You can check your current ChronoServe version in several ways:
+You can check your current SysManix version in several ways:
 
 ### Command Line
 ```bash
-chronoserve --version
+SysManix --version
 ```
 
 ### From Running Server
@@ -16,7 +16,7 @@ The version is displayed in:
 
 ## Version Format
 
-ChronoServe follows semantic versioning (MAJOR.MINOR.PATCH):
+SysManix follows semantic versioning (MAJOR.MINOR.PATCH):
 - MAJOR: Breaking changes
 - MINOR: New features, backwards compatible
 - PATCH: Bug fixes, backwards compatible
@@ -25,14 +25,14 @@ Example: `v1.2.3`
 
 ## Update Checking
 
-ChronoServe automatically checks for updates by:
+SysManix automatically checks for updates by:
 1. Comparing your version with latest GitHub release
 2. Displaying notifications if updates are available
 3. Providing update instructions based on your OS
 
 ### Manual Update Check
 ```bash
-chronoserve --check-updates
+SysManix --check-updates
 ```
 
 ## Downloading Updates
@@ -40,30 +40,30 @@ chronoserve --check-updates
 ### Windows
 ```powershell
 # PowerShell (as Administrator)
-1. Stop ChronoServe service
-Stop-Service ChronoServe
+1. Stop SysManix service
+Stop-Service SysManix
 
 2. Download latest release
-Invoke-WebRequest -Uri "https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_windows_amd64.exe" -OutFile ".\bin\chronoserve.exe"
+Invoke-WebRequest -Uri "https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_windows_amd64.exe" -OutFile ".\bin\SysManix.exe"
 
 3. Restart service
-Start-Service ChronoServe
+Start-Service SysManix
 ```
 
 ### Linux
 ```bash
 # Terminal (with sudo)
-1. Stop ChronoServe service
-sudo systemctl stop chronoserve
+1. Stop SysManix service
+sudo systemctl stop SysManix
 
 2. Download latest release
-sudo wget https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_linux_amd64 -O /usr/local/bin/chronoserve
+sudo wget https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_linux_amd64 -O /usr/local/bin/SysManix
 
 3. Make executable
-sudo chmod +x /usr/local/bin/chronoserve
+sudo chmod +x /usr/local/bin/SysManix
 
 4. Restart service
-sudo systemctl start chronoserve
+sudo systemctl start SysManix
 ```
 
 ## Version History
@@ -78,13 +78,13 @@ sudo systemctl start chronoserve
 
 Example update available:
 ```
-ChronoServe v0.1.0 (update available: v0.2.0)
-Visit https://github.com/therealtoxicdev/chronoserve/releases for the latest version
+SysManix v0.1.0 (update available: v0.2.0)
+Visit https://github.com/toxic-development/SysManix/releases for the latest version
 ```
 
 Example up-to-date:
 ```
-ChronoServe v0.1.0 (latest)
+SysManix v0.1.0 (latest)
 ```
 
 ## Configuration
@@ -119,6 +119,6 @@ updates:
 ### Support
 
 For version-related issues:
-1. Check [GitHub Issues](https://github.com/therealtoxicdev/chronoserve/issues)
+1. Check [GitHub Issues](https://github.com/toxic-development/SysManix/issues)
 2. Open a new issue with label 'version'
 3. Include your current version and OS details

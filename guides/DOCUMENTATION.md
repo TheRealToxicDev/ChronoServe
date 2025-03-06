@@ -1,4 +1,4 @@
-# ChronoServe Documentation
+# SysManix Documentation
 
 ## Table of Contents
 
@@ -12,10 +12,10 @@
 
 ## Architecture Overview
 
-ChronoServe follows a modular architecture designed for cross-platform service management:
+SysManix follows a modular architecture designed for cross-platform service management:
 
 ```plaintext
-ChronoServe/
+SysManix/
 ├── api/           # HTTP routes and handlers
 ├── middleware/    # Authentication and request processing
 ├── services/      # OS-specific service management
@@ -88,7 +88,7 @@ type PasswordConfig struct {
   "roles": ["admin", "viewer"],
   "exp": 1735689600,
   "iat": 1735603200,
-  "iss": "ChronoServe"
+  "iss": "SysManix"
 }
 ```
 
@@ -180,7 +180,7 @@ server:
 auth:
     secretKey: your-secure-key
     tokenDuration: 24h0m0s
-    issuedBy: ChronoServe
+    issuedBy: SysManix
     allowedRoles:
         - admin
         - viewer
@@ -193,12 +193,12 @@ auth:
 
 linux:
     serviceCommand: systemctl
-    logDirectory: /var/log/chronoserve
+    logDirectory: /var/log/SysManix
     services: {}
 
 windows:
     serviceCommand: sc
-    logDirectory: C:\ProgramData\ChronoServe\logs
+    logDirectory: C:\ProgramData\SysManix\logs
     services: {}
 
 logging:

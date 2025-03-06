@@ -1,9 +1,8 @@
 <h2 align='center'>
-  <img src="https://img.toxicdev.me/api/user/510065483693817867/IPf3aZXe.png" height='150px' width='150px'/>
+  <img src="https://elixir.makesmehorny.wtf/users/510065483693817867/ibBmQrYj.png" height='150px' width='150px'/>
   <br> 
 </h2>
 
-# SysManix
 A secure, cross-platform service management API that provides controlled access to system services through a RESTful interface.
 
 ## Features
@@ -41,17 +40,17 @@ A secure, cross-platform service management API that provides controlled access 
 ## Quick Start
 
 ```powershell
-# Install ChronoServe
-Invoke-WebRequest -Uri "https://github.com/therealtoxicdev/chronoserve/releases/latest/download/chronoserve_windows_amd64.exe" -OutFile "chronoserve.exe"
+# Install SysManix
+Invoke-WebRequest -Uri "https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_windows_amd64.exe" -OutFile "SysManix.exe"
 
 # First run (creates config)
-.\chronoserve.exe
+.\SysManix.exe
 
 # Update config.yaml with your credentials
 notepad config.yaml
 
 # Start the server
-.\chronoserve.exe
+.\SysManix.exe
 ```
 
 ### Authentication Example
@@ -100,8 +99,8 @@ Invoke-RestMethod -Uri "http://localhost:40200/services/status/EventLog" -Header
 
 ```powershell
 # Clone repository
-git clone https://github.com/therealtoxicdev/chronoserve.git
-cd chronoserve
+git clone https://github.com/toxic-development/SysManix.git
+cd SysManix
 
 # Install dependencies
 go mod download
@@ -122,4 +121,4 @@ Found a security issue? Please report it privately following our [Security Polic
 
 - [Troubleshooting Guide](./guides/TROUBLESHOOTING.md)
 - [API Documentation](./guides/API_REFERENCE.md)
-- [GitHub Issues](https://github.com/therealtoxicdev/chronoserve/issues)
+- [GitHub Issues](https://github.com/toxic-development/SysManix/issues)
