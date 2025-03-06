@@ -18,12 +18,12 @@ A secure, cross-platform service management API that provides controlled access 
 
 ## Quick Links
 
-- [Getting Started](./docs/GETTING_STARTED.md)
-- [Full Documentation](./docs/DOCUMENTATION.md)
-- [API Reference](./docs/API_REFERENCE.md)
+- [Getting Started](./guides/GETTING_STARTED.md)
+- [Full Documentation](./guides/DOCUMENTATION.md)
+- [API Reference](./guides/API_REFERENCE.md)
 - [Security](./SECURITY.md)
 - [Contributing](./CONTRIBUTING.md)
-- [Troubleshooting](./docs/TROUBLESHOOTING.md)
+- [Troubleshooting](./guides/TROUBLESHOOTING.md)
 
 ## API Overview
 
@@ -120,6 +120,6 @@ Found a security issue? Please report it privately following our [Security Polic
 
 ## Support
 
-- [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)
-- [API Documentation](./docs/API_REFERENCE.md)
+- [Troubleshooting Guide](./guides/TROUBLESHOOTING.md)
+- [API Documentation](./guides/API_REFERENCE.md)
 - [GitHub Issues](https://github.com/therealtoxicdev/chronoserve/issues)
