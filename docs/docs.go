@@ -11,13 +11,12 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "termsOfService": "https://opensource.org/licenses/MIT",
         "contact": {
-            "name": "Your Name",
-            "url": "https://github.com/toxic-development/sysmanix",
-            "email": "your.email@example.com"
+            "name": "Toxic Development",
+            "url": "https://github.com/toxic-development/sysmanix"
         },
         "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
+            "name": "AGPL-3.0",
+            "url": "https://opensource.org/license/agpl-v3"
         },
         "version": "{{.Version}}"
     },
@@ -88,7 +87,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a list of all system services",
+                "description": "Returns a list of all available system services",
                 "consumes": [
                     "application/json"
                 ],
@@ -98,15 +97,73 @@ const docTemplate = `{
                 "tags": [
                     "services"
                 ],
-                "summary": "List all services",
+                "summary": "List system services",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/services.ServiceInfo"
-                            }
+                            "$ref": "#/definitions/services.ServiceListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/services/logs/{name}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns logs for the specified service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Get service logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of log lines to return (default: 100)",
+                        "name": "lines",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.ServiceLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
                         }
                     }
                 }
@@ -129,7 +186,7 @@ const docTemplate = `{
                 "tags": [
                     "services"
                 ],
-                "summary": "Start a service",
+                "summary": "Start a system service",
                 "parameters": [
                     {
                         "type": "string",
@@ -139,7 +196,124 @@ const docTemplate = `{
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.ServiceActionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/services/status/{name}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the current status of the specified service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Get service status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.ServiceStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/services/stop/{name}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stops the specified system service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Stop a system service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Service name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.ServiceActionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/services.ErrorResponse"
+                        }
+                    }
+                }
             }
         }
     },
@@ -212,20 +386,143 @@ const docTemplate = `{
                 }
             }
         },
-        "services.ServiceInfo": {
+        "services.ErrorResponse": {
             "type": "object",
             "properties": {
-                "description": {
-                    "type": "string"
+                "code": {
+                    "type": "integer",
+                    "example": 404
                 },
-                "displayName": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
+                "message": {
+                    "type": "string",
+                    "example": "An error occurred while processing your request"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "error"
+                }
+            }
+        },
+        "services.LogEntry": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "example": "info"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Service started successfully"
+                },
+                "time": {
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                }
+            }
+        },
+        "services.ServiceActionResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Service started successfully"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "services.ServiceListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.ServiceSummary"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Services retrieved successfully"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "services.ServiceLogsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.LogEntry"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Logs retrieved successfully"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "services.ServiceStatus": {
+            "type": "object",
+            "properties": {
+                "isActive": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "nginx"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                }
+            }
+        },
+        "services.ServiceStatusResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/services.ServiceStatus"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Service status retrieved successfully"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "services.ServiceSummary": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Nginx Web Server"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "nginx"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "running"
                 }
             }
         }

@@ -44,27 +44,113 @@ definitions:
       totalAlloc:
         type: integer
     type: object
-  services.ServiceInfo:
+  services.ErrorResponse:
     properties:
-      description:
-        type: string
-      displayName:
-        type: string
-      name:
+      code:
+        example: 404
+        type: integer
+      message:
+        example: An error occurred while processing your request
         type: string
       status:
+        example: error
+        type: string
+    type: object
+  services.LogEntry:
+    properties:
+      level:
+        example: info
+        type: string
+      message:
+        example: Service started successfully
+        type: string
+      time:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
+  services.ServiceActionResponse:
+    properties:
+      data: {}
+      message:
+        example: Service started successfully
+        type: string
+      status:
+        example: success
+        type: string
+    type: object
+  services.ServiceListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/services.ServiceSummary'
+        type: array
+      message:
+        example: Services retrieved successfully
+        type: string
+      status:
+        example: success
+        type: string
+    type: object
+  services.ServiceLogsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/services.LogEntry'
+        type: array
+      message:
+        example: Logs retrieved successfully
+        type: string
+      status:
+        example: success
+        type: string
+    type: object
+  services.ServiceStatus:
+    properties:
+      isActive:
+        example: true
+        type: boolean
+      name:
+        example: nginx
+        type: string
+      status:
+        example: active
+        type: string
+      updatedAt:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
+  services.ServiceStatusResponse:
+    properties:
+      data:
+        $ref: '#/definitions/services.ServiceStatus'
+      message:
+        example: Service status retrieved successfully
+        type: string
+      status:
+        example: success
+        type: string
+    type: object
+  services.ServiceSummary:
+    properties:
+      displayName:
+        example: Nginx Web Server
+        type: string
+      name:
+        example: nginx
+        type: string
+      status:
+        example: running
         type: string
     type: object
 host: localhost:8080
 info:
   contact:
-    email: your.email@example.com
-    name: Your Name
+    name: Toxic Development
     url: https://github.com/toxic-development/sysmanix
   description: Cross-platform service management API
   license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
+    name: AGPL-3.0
+    url: https://opensource.org/license/agpl-v3
   termsOfService: https://opensource.org/licenses/MIT
   title: SysManix API
   version: 1.0.0
@@ -110,19 +196,56 @@ paths:
     get:
       consumes:
       - application/json
-      description: Returns a list of all system services
+      description: Returns a list of all available system services
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/services.ServiceInfo'
-            type: array
+            $ref: '#/definitions/services.ServiceListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: List all services
+      summary: List system services
+      tags:
+      - services
+  /services/logs/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Returns logs for the specified service
+      parameters:
+      - description: Service name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 'Number of log lines to return (default: 100)'
+        in: query
+        name: lines
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ServiceLogsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get service logs
       tags:
       - services
   /services/start/{name}:
@@ -138,10 +261,84 @@ paths:
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ServiceActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Start a service
+      summary: Start a system service
+      tags:
+      - services
+  /services/status/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the current status of the specified service
+      parameters:
+      - description: Service name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ServiceStatusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get service status
+      tags:
+      - services
+  /services/stop/{name}:
+    post:
+      consumes:
+      - application/json
+      description: Stops the specified system service
+      parameters:
+      - description: Service name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.ServiceActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/services.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stop a system service
       tags:
       - services
 securityDefinitions:

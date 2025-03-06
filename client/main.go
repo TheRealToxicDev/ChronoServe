@@ -33,12 +33,6 @@ func init() {
 	}
 }
 
-// configureSwagger sets up Swagger documentation with application information
-func configureSwagger() {
-	// Note: Most settings are defined via annotations, but you can
-	// programmatically update some settings if needed in the future
-}
-
 func main() {
 	// Initialize configuration
 	if err := config.InitConfig(configFile); err != nil {
@@ -61,10 +55,6 @@ func main() {
 
 	utils.CheckVersionInBackground(logger)
 	logger.Info("Version checker started (current: v%s)", utils.Version)
-
-	// Configure Swagger documentation
-	configureSwagger()
-	logger.Info("Swagger documentation initialized")
 
 	// Initialize auth middleware
 	middleware.InitAuth(middleware.AuthConfig{
@@ -97,13 +87,18 @@ func main() {
 		<-quit
 		logger.Info("Server is shutting down...")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // Reduced from 30s
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Error("Could not gracefully shutdown the server: %v", err)
 		}
 		close(done)
+
+		// Force exit if done channel isn't processed
+		time.Sleep(2 * time.Second)
+		logger.Warn("Forcing exit after timeout")
+		os.Exit(0)
 	}()
 
 	// Start server

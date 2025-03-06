@@ -53,3 +53,17 @@ type ServiceActionResponse struct {
 	Message string `json:"message" example:"Service started successfully"`
 	Data    any    `json:"data"`
 }
+
+// ErrorResponse represents an error response structure
+type ErrorResponse struct {
+	Status  string `json:"status" example:"error"`
+	Message string `json:"message" example:"An error occurred while processing your request"`
+	Code    int    `json:"code,omitempty" example:"404"`
+}
+
+// SuccessResponse represents a success response structure
+type SuccessResponse struct {
+	Status  string `json:"status" example:"success"`
+	Message string `json:"message" example:"Operation completed successfully"`
+	Data    any    `json:"data,omitempty"`
+}

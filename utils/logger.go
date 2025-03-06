@@ -176,8 +176,23 @@ func (l *Logger) cleanOldBackups() {
 	}
 }
 
-// ... existing Debug, Info, Warn, Error methods ...
+// Sync ensures all log entries are written to their destination
+// This is especially important to call before program exit
+func (l *Logger) Sync() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
+	// For file-based logging, we need to sync the file
+	if l.file != nil {
+		if err := l.file.Sync(); err != nil {
+			return fmt.Errorf("failed to sync log file: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Close properly closes the logger
 func (l *Logger) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()

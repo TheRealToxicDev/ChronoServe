@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,16 +37,25 @@ func NewWindowsService() *WindowsService {
 // GetServices returns a list of all Windows services
 func (s *WindowsService) GetServices() ([]ServiceInfo, error) {
 	script := `
-        Get-Service | Select-Object Name, DisplayName, Status | ConvertTo-Json
+        Get-Service | Select-Object Name, DisplayName, Status | ConvertTo-Json -Compress
     `
 	out, err := s.executePowershell(script)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list services: %v", err)
 	}
 
+	// Debug the output
+	outStr := out.String()
+	if outStr == "" {
+		return nil, fmt.Errorf("empty response from PowerShell")
+	}
+
+	// Trim any whitespace or BOM characters
+	outStr = strings.TrimSpace(outStr)
+
 	var rawServices []map[string]interface{}
-	if err := json.Unmarshal(out.Bytes(), &rawServices); err != nil {
-		return nil, fmt.Errorf("failed to parse service data: %v", err)
+	if err := json.Unmarshal([]byte(outStr), &rawServices); err != nil {
+		return nil, fmt.Errorf("failed to parse service data (%s): %v", outStr, err)
 	}
 
 	// Convert to our service info format
@@ -81,8 +91,21 @@ func (s *WindowsService) GetServiceStatusByName(name string) (*ServiceStatus, er
 	}
 	s.cacheMutex.RUnlock()
 
+	// Improved script with diagnostic information
 	script := fmt.Sprintf(`
-        Get-Service -Name "%s" | Select-Object Name, DisplayName, Status | ConvertTo-Json
+        try {
+            $service = Get-Service -Name "%s" -ErrorAction Stop
+            $obj = @{
+                "Name" = $service.Name
+                "DisplayName" = $service.DisplayName
+                "Status" = $service.Status.ToString()
+            }
+            $json = ConvertTo-Json -InputObject $obj -Compress
+            Write-Output $json
+        } catch {
+            Write-Error "Error getting service: $_"
+            exit 1
+        }
     `, name)
 
 	out, err := s.executePowershell(script)
@@ -90,16 +113,33 @@ func (s *WindowsService) GetServiceStatusByName(name string) (*ServiceStatus, er
 		return nil, fmt.Errorf("failed to get status for service %s: %v", name, err)
 	}
 
-	var rawStatus map[string]interface{}
-	if err := json.Unmarshal(out.Bytes(), &rawStatus); err != nil {
-		return nil, fmt.Errorf("failed to parse service status: %v", err)
+	// Debug the output
+	outStr := out.String()
+	if outStr == "" {
+		return nil, fmt.Errorf("empty response from PowerShell for service %s", name)
 	}
 
+	// Trim any whitespace or BOM characters
+	outStr = strings.TrimSpace(outStr)
+
+	var rawStatus map[string]interface{}
+	if err := json.Unmarshal([]byte(outStr), &rawStatus); err != nil {
+		return nil, fmt.Errorf("failed to parse service status (%s): %v", outStr, err)
+	}
+
+	// Extract values with defensive coding
+	nameStr, _ := rawStatus["Name"].(string)
 	statusStr, _ := rawStatus["Status"].(string)
+
+	// Use the actual value if available, otherwise fall back to the requested name
+	if nameStr == "" {
+		nameStr = name
+	}
+
 	isActive := statusStr == "Running"
 
 	status := ServiceStatus{
-		Name:      name,
+		Name:      nameStr,
 		Status:    statusStr,
 		IsActive:  isActive,
 		UpdatedAt: time.Now(),

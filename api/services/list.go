@@ -13,7 +13,7 @@ import (
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  ServiceListResponse
-// @Failure      500  {object}  utils.ErrorResponse
+// @Failure      500  {object}  ErrorResponse
 // @Security     BearerAuth
 // @Router       /services [get]
 func ListServices(w http.ResponseWriter, r *http.Request) {

@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"path"
 	"strings"
 
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -13,29 +12,23 @@ import (
 func registerSwaggerRoutes(mux *http.ServeMux) {
 	cfg := config.GetConfig()
 
-	// Strip any leading/trailing slashes and ensure it starts with a slash
-	swaggerPath := cfg.API.SwaggerPath
-	swaggerPath = strings.Trim(swaggerPath, "/")
+	// Normalize swagger path - make sure it starts with a slash and doesn't end with one
+	swaggerPath := "/" + strings.Trim(cfg.API.SwaggerPath, "/")
 
-	// Register the Swagger handler at the configured path
-	registerRouteWithMiddleware(mux, path.Join(swaggerPath, "*"), serveSwagger, false, nil)
-}
-
-// serveSwagger serves Swagger UI using configuration settings
-func serveSwagger(w http.ResponseWriter, r *http.Request) {
-	cfg := config.GetConfig()
-
-	// Determine the correct path for doc.json based on the SwaggerPath
-	docJSONPath := path.Join(cfg.API.SwaggerPath, "doc.json")
-	if !strings.HasPrefix(docJSONPath, "/") {
-		docJSONPath = "/" + docJSONPath
-	}
-
-	// Configure the Swagger UI
-	httpSwagger.Handler(
-		httpSwagger.URL(docJSONPath),
+	// Create the Swagger handler
+	handler := httpSwagger.Handler(
+		httpSwagger.URL(swaggerPath+"/doc.json"), // The URL where the Swagger JSON will be served
 		httpSwagger.DeepLinking(true),
-		httpSwagger.DocExpansion("none"),
+		httpSwagger.DocExpansion("list"),
 		httpSwagger.DomID("swagger-ui"),
-	).ServeHTTP(w, r)
+	)
+
+	// Register routes - without authentication
+	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+	})
+
+	mux.HandleFunc(swaggerPath+"/", func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+	})
 }
