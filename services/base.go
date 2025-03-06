@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 type ServiceHandler interface {

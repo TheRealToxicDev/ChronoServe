@@ -11,10 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/therealtoxicdev/chronoserve/api"
-	"github.com/therealtoxicdev/chronoserve/config"
-	"github.com/therealtoxicdev/chronoserve/middleware"
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/api"
+	"github.com/toxic-development/sysmanix/config"
+	_ "github.com/toxic-development/sysmanix/docs"
+	"github.com/toxic-development/sysmanix/middleware"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 var (
@@ -30,6 +31,12 @@ func init() {
 		utils.PrintVersionInfo()
 		os.Exit(0)
 	}
+}
+
+// configureSwagger sets up Swagger documentation with application information
+func configureSwagger() {
+	// Note: Most settings are defined via annotations, but you can
+	// programmatically update some settings if needed in the future
 }
 
 func main() {
@@ -54,6 +61,10 @@ func main() {
 
 	utils.CheckVersionInBackground(logger)
 	logger.Info("Version checker started (current: v%s)", utils.Version)
+
+	// Configure Swagger documentation
+	configureSwagger()
+	logger.Info("Swagger documentation initialized")
 
 	// Initialize auth middleware
 	middleware.InitAuth(middleware.AuthConfig{
@@ -96,8 +107,9 @@ func main() {
 	}()
 
 	// Start server
-	logger.Info("ChronoServe is online and awaiting requests")
+	logger.Info("SysManix is online and awaiting requests")
 	logger.Info("Listening on %s:%d", config.Server.Host, config.Server.Port)
+	logger.Info("Swagger documentation available at http://%s:%d%s", config.Server.Host, config.Server.Port, config.API.SwaggerPath)
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("Server failed to start: %v", err)

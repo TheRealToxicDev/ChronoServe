@@ -3,7 +3,7 @@
   <br> 
 </h2>
 
-# ChronoServe
+# SysManix
 A secure, cross-platform service management API that provides controlled access to system services through a RESTful interface.
 
 ## Features

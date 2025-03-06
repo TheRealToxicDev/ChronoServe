@@ -1,12 +1,13 @@
-package utils
+package base
 
 import (
-	"encoding/json"
 	"net/http"
-	"runtime"
 	"time"
+
+	"github.com/toxic-development/sysmanix/utils"
 )
 
+// HealthStatus represents the health check response
 type HealthStatus struct {
 	Status    string    `json:"status"`
 	Uptime    string    `json:"uptime"`
@@ -24,8 +25,6 @@ type MemStats struct {
 	HeapInUse  float64 `json:"heapInUse"`
 }
 
-var startTime = time.Now()
-
 // @Summary      Get service health
 // @Description  Returns service health information and status
 // @Tags         health
@@ -33,25 +32,6 @@ var startTime = time.Now()
 // @Produce      json
 // @Success      200  {object}  HealthStatus
 // @Router       /health [get]
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-
-	status := HealthStatus{
-		Status:    "healthy",
-		Uptime:    time.Since(startTime).String(),
-		Version:   Version,
-		GoVersion: runtime.Version(),
-		Memory: MemStats{
-			Alloc:      mem.Alloc,
-			TotalAlloc: mem.TotalAlloc,
-			Sys:        mem.Sys,
-			NumGC:      mem.NumGC,
-			HeapInUse:  float64(mem.HeapInuse) / 1024 / 1024, // MB
-		},
-		StartTime: startTime,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	utils.HealthCheck(w, r)
 }

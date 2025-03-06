@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 // Recovery middleware handles panic recovery

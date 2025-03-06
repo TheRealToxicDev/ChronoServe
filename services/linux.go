@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 // Ensure SystemdService implements ServiceHandler

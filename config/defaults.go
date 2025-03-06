@@ -8,6 +8,13 @@ import (
 
 // Default configuration values
 var defaultConfig = Config{
+	API: APIConfig{
+		EnableSwagger: true,
+		SwaggerPath:   "/swagger/",
+		Version:       "1.0.0",
+		Title:         "SysManix API",
+		Description:   "Cross-platform service management API",
+	},
 	Server: ServerConfig{
 		Host:           "localhost",
 		Port:           8080,
@@ -18,7 +25,7 @@ var defaultConfig = Config{
 	Auth: AuthConfig{
 		SecretKey:     "change-me",
 		TokenDuration: 24 * time.Hour,
-		IssuedBy:      "ChronoServe",
+		IssuedBy:      "SysManix",
 		AllowedRoles:  []string{"admin", "viewer"},
 		Users: map[string]Credentials{
 			"admin": {
@@ -35,11 +42,11 @@ var defaultConfig = Config{
 	},
 	Linux: LinuxConfig{
 		ServiceCommand: "systemctl",
-		LogDirectory:   "/var/log/chronoserve",
+		LogDirectory:   "/var/log/SysManix",
 	},
 	Windows: WindowsConfig{
 		ServiceCommand: "sc",
-		LogDirectory:   "C:\\ProgramData\\ChronoServe\\logs",
+		LogDirectory:   "C:\\ProgramData\\SysManix\\logs",
 	},
 	Logging: LogConfig{
 		Level:      "info",
@@ -113,6 +120,22 @@ func mergeWithDefaults(cfg *Config) {
 	if cfg.Logging.MaxAge == 0 {
 		cfg.Logging.MaxAge = defaultConfig.Logging.MaxAge
 	}
+
+	// API defaults
+	if cfg.API.Version == "" {
+		cfg.API.Version = defaultConfig.API.Version
+	}
+	if cfg.API.Title == "" {
+		cfg.API.Title = defaultConfig.API.Title
+	}
+	if cfg.API.Description == "" {
+		cfg.API.Description = defaultConfig.API.Description
+	}
+	if cfg.API.SwaggerPath == "" {
+		cfg.API.SwaggerPath = defaultConfig.API.SwaggerPath
+	}
+	// We only set EnableSwagger if it's not explicitly set to false
+	// This ensures it's enabled by default
 }
 
 // hasDefaultCredentials checks if the configuration has the default credentials

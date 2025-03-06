@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/therealtoxicdev/chronoserve/config"
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/config"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 type LoginRequest struct {

@@ -2,18 +2,24 @@
 
 build:
 	@echo Building ChronoServe...
-	go build -o bin/chronoserve ./client/main.go
+	go build -o bin/sysmanix ./client/main.go
 	
 start:
-	@echo Starting ChronoServe Linux in Production...
-	./bin/chronoserve
+	@echo Starting SysManix Linux in Production...
+	./bin/sysmanix
 
 start-windows:
-	@echo Starting ChronoServe Windows in Production...
-	./bin/chronoserve.exe
+	@echo Starting SysManix Windows in Production...
+	./bin/sysmanix.exe
 
 dev:
 	go run ./client/main.go
+
+# Build Documentation
+docs:
+	@echo "Generating OpenAPI documentation"
+	@swag i -g docs.go --dir api
+	@echo "Swagger docs generated in $(SWAGGER_DIR)"
 
 clean:
 	rm -rf bin/
@@ -26,4 +32,4 @@ lint:
 	golangci-lint run
 
 docker:
-	docker build -t chronoserve:$(VERSION) .
+	docker build -t sysmanix:$(VERSION) .

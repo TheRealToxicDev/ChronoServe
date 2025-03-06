@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	// Version is the current version of ChronoServe
+	// Version is the current version of SysManix
 	Version = "0.1.0"
 
 	// githubAPI is the endpoint for checking latest releases
-	githubAPI = "https://api.github.com/repos/therealtoxicdev/chronoserve/releases/latest"
+	githubAPI = "https://api.github.com/repos/toxic-development/sysmanix/releases/latest"
 )
 
 type GitHubRelease struct {
@@ -35,7 +35,7 @@ func CheckVersion() (isLatest bool, latestVersion string, err error) {
 	}
 
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "ChronoServe-Version-Checker")
+	req.Header.Set("User-Agent", "SysManix-Version-Checker")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -109,15 +109,15 @@ func GetCurrentVersion() string {
 func PrintVersionInfo() {
 	isLatest, latestVersion, err := CheckVersion()
 	if err != nil {
-		fmt.Printf("ChronoServe v%s\nFailed to check for updates: %v\n", Version, err)
+		fmt.Printf("SysManix v%s\nFailed to check for updates: %v\n", Version, err)
 		return
 	}
 
 	if isLatest {
-		fmt.Printf("ChronoServe v%s (latest)\n", Version)
+		fmt.Printf("SysManix v%s (latest)\n", Version)
 	} else {
-		fmt.Printf("ChronoServe v%s (update available: v%s)\n", Version, latestVersion)
-		fmt.Println("Visit https://github.com/therealtoxicdev/chronoserve/releases for the latest version")
+		fmt.Printf("SysManix v%s (update available: v%s)\n", Version, latestVersion)
+		fmt.Println("Visit https://github.com/toxic-development/sysmanix/releases for the latest version")
 	}
 }
 
@@ -146,6 +146,6 @@ func checkAndLogVersion(logger *Logger) {
 
 	if !isLatest {
 		logger.Info("Update available: v%s (current: v%s)", latestVersion, Version)
-		logger.Info("Visit https://github.com/therealtoxicdev/chronoserve/releases for the latest version")
+		logger.Info("Visit https://github.com/toxic-development/sysmanix/releases for the latest version")
 	}
 }

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/therealtoxicdev/chronoserve/config"
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/config"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 type Claims struct {

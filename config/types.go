@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 // Config represents the root configuration structure
@@ -14,6 +14,16 @@ type Config struct {
 	Linux   LinuxConfig   `yaml:"linux"`
 	Windows WindowsConfig `yaml:"windows"`
 	Logging LogConfig     `yaml:"logging"`
+	API     APIConfig     `yaml:"api"`
+}
+
+// APIConfig contains API-related settings including Swagger documentation
+type APIConfig struct {
+	EnableSwagger bool   `yaml:"enableSwagger"` // Whether to enable Swagger UI
+	SwaggerPath   string `yaml:"swaggerPath"`   // Path to Swagger UI
+	Version       string `yaml:"version"`       // API version
+	Title         string `yaml:"title"`         // API title for documentation
+	Description   string `yaml:"description"`   // API description for documentation
 }
 
 type ServerConfig struct {

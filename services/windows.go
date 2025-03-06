@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/therealtoxicdev/chronoserve/utils"
+	"github.com/toxic-development/sysmanix/utils"
 )
 
 // WindowsService implements the ServiceHandler interface for Windows
