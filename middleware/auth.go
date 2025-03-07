@@ -2,8 +2,11 @@ package middleware
 
 import (
 	"crypto/subtle"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +51,40 @@ var (
 	}
 )
 
+const tokenFileName = "tokens.json"
+
+// getTokenFilePath returns the full path to the tokens file in the "assets" directory
+func getTokenFilePath() string {
+	return filepath.Join("assets", tokenFileName)
+}
+
+// loadTokens loads tokens from a file
+func loadTokens() error {
+	filePath := getTokenFilePath()
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // No tokens file exists yet
+		}
+		return err
+	}
+	defer file.Close()
+
+	return json.NewDecoder(file).Decode(&tokenStore.tokens)
+}
+
+// saveTokens saves tokens to a file
+func saveTokens() error {
+	filePath := getTokenFilePath()
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return json.NewEncoder(file).Encode(tokenStore.tokens)
+}
+
 // InitAuth initializes the authentication configuration
 func InitAuth(cfg AuthConfig) {
 	var err error
@@ -63,6 +100,11 @@ func InitAuth(cfg AuthConfig) {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
 	authConfig = cfg
+
+	// Load tokens from file
+	if err := loadTokens(); err != nil {
+		panic(fmt.Sprintf("Failed to load tokens: %v", err))
+	}
 
 	// Start token cleanup routine
 	go cleanupExpiredTokens()
@@ -275,6 +317,11 @@ func storeToken(info TokenInfo) {
 
 	tokenStore.tokens[info.TokenID] = info
 	logger.Debug("Token stored for user %s, expires at %v", info.UserID, info.ExpiresAt)
+
+	// Save tokens to file
+	if err := saveTokens(); err != nil {
+		logger.Error("Failed to save tokens: %v", err)
+	}
 }
 
 // cleanupExpiredTokens periodically removes expired tokens from the store
@@ -304,6 +351,10 @@ func removeExpired() {
 
 	if removed > 0 {
 		logger.Debug("Removed %d expired tokens", removed)
+		// Save tokens to file
+		if err := saveTokens(); err != nil {
+			logger.Error("Failed to save tokens: %v", err)
+		}
 	}
 }
 
@@ -315,6 +366,11 @@ func RevokeToken(tokenID string) bool {
 	if _, exists := tokenStore.tokens[tokenID]; exists {
 		delete(tokenStore.tokens, tokenID)
 		logger.Debug("Token %s revoked", tokenID)
+
+		// Save tokens to file
+		if err := saveTokens(); err != nil {
+			logger.Error("Failed to save tokens: %v", err)
+		}
 		return true
 	}
 
@@ -336,6 +392,10 @@ func RevokeUserTokens(userID string) int {
 
 	if count > 0 {
 		logger.Debug("Revoked %d tokens for user %s", count, userID)
+		// Save tokens to file
+		if err := saveTokens(); err != nil {
+			logger.Error("Failed to save tokens: %v", err)
+		}
 	}
 
 	return count

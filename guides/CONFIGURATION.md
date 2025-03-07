@@ -49,12 +49,12 @@ auth:
   users:                                      # User definitions
     admin:
       username: "admin"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."  # Hashed password
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - admin
     viewer:
       username: "viewer"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - viewer
     custom_user:
@@ -68,6 +68,33 @@ Important notes:
 - `secretKey` should be a strong random string (at least 32 characters)
 - `tokenDuration` uses Go's duration format (e.g., "24h", "30m", "1h30m")
 - You can provide either `password_hash` or `password` (which will be automatically hashed)
+- User IDs will be automatically generated if not provided
+- Additional user fields such as `avatarUrl`, `bannerUrl`, `displayName`, and `bio` can be added as needed
+
+### Additional User Fields
+
+You can add the following optional fields to each user:
+
+- `avatarUrl`: URL to the user's avatar image
+- `bannerUrl`: URL to the user's banner image
+- `displayName`: Display name for the user
+- `bio`: Short biography or description for the user
+
+Example:
+
+```yaml
+auth:
+  users:
+    custom_user:
+      username: "custom_user"
+      password: "plain_password"  # Plain password (will be hashed after restart)
+      roles:
+        - viewer
+      avatarUrl: "https://example.com/avatar.jpg"
+      bannerUrl: "https://example.com/banner.jpg"
+      displayName: "Custom User"
+      bio: "This is a custom user."
+```
 
 ### Operating System Specific Configuration
 
@@ -77,16 +104,10 @@ Settings specific to each supported operating system:
 windows:
   serviceCommand: "sc"                         # Windows service command
   logDirectory: "C:\\ProgramData\\SysManix\\logs"  # Log directory
-  services:                                    # Service-specific configurations
-    protected:                                 # List of additional protected services
-      - CustomCriticalService
 
 linux:
   serviceCommand: "systemctl"                  # Linux service command
   logDirectory: "/var/log/SysManix"            # Log directory
-  services:                                    # Service-specific configurations
-    protected:                                 # List of additional protected services
-      - critical-custom-service
 ```
 
 ### Logging Configuration
@@ -118,60 +139,6 @@ api:
 
 ## Advanced Configuration
 
-### Protected Services Configuration
-
-Protected services are critical system services that cannot be managed through the API for security reasons. SysManix includes default protected services for each platform, but you can add additional ones:
-
-```yaml
-windows:
-  services:
-    protected:
-      - wininit
-      - csrss
-      - lsass
-      - YourCriticalService1
-      - YourCriticalService2
-
-linux:
-  services:
-    protected:
-      - systemd
-      - dbus
-      - sshd
-      - your-critical-service1
-      - your-critical-service2
-```
-
-### Custom Service Permissions
-
-You can define custom permissions for specific services:
-
-```yaml
-windows:
-  services:
-    customPermissions:
-      sqlserver:
-        allowedRoles:
-          - admin
-          - db_admin
-      iis:
-        allowedRoles:
-          - admin
-          - web_admin
-
-linux:
-  services:
-    customPermissions:
-      nginx:
-        allowedRoles:
-          - admin
-          - web_admin
-      postgresql:
-        allowedRoles:
-          - admin
-          - db_admin
-```
-
 ### Extended User Roles
 
 Create custom roles for fine-grained permission control:
@@ -188,13 +155,13 @@ auth:
   users:
     web_user:
       username: "web_user"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - web_admin
 
     db_user:
       username: "db_user"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - db_admin
 ```
@@ -318,49 +285,27 @@ auth:
   users:
     admin:
       username: "admin"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - admin
     viewer:
       username: "viewer"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - viewer
     operator:
       username: "operator"
-      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      password: "change-me"  # Plain password (will be hashed after restart)
       roles:
         - operator
 
 windows:
   serviceCommand: "sc"
   logDirectory: "C:\\ProgramData\\SysManix\\logs"
-  services:
-    protected:
-      - wininit
-      - csrss
-      - lsass
-      - CustomCriticalService
-    customPermissions:
-      sqlserver:
-        allowedRoles:
-          - admin
-          - db_admin
 
 linux:
   serviceCommand: "systemctl"
   logDirectory: "/var/log/SysManix"
-  services:
-    protected:
-      - systemd
-      - dbus
-      - sshd
-      - custom-critical-service
-    customPermissions:
-      postgresql:
-        allowedRoles:
-          - admin
-          - db_admin
 
 logging:
   level: "info"

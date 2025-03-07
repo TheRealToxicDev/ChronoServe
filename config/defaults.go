@@ -9,7 +9,7 @@ import (
 // Default configuration values
 var defaultConfig = Config{
 	API: APIConfig{
-		EnableSwagger: true,
+		EnableSwagger: false,
 		SwaggerPath:   "/swagger/",
 		Version:       "1.0.0",
 		Title:         "SysManix API",
@@ -28,15 +28,10 @@ var defaultConfig = Config{
 		IssuedBy:      "SysManix",
 		AllowedRoles:  []string{"admin", "viewer"},
 		Users: map[string]Credentials{
-			"admin": {
-				Username: "admin",
-				Password: "change-me", // Will be hashed on first run
+			"superadmin": {
+				Username: "superadmin",
+				Password: "change-me", // Use password field instead of password_hash
 				Roles:    []string{"admin"},
-			},
-			"viewer": {
-				Username: "viewer",
-				Password: "change-me", // Will be hashed on first run
-				Roles:    []string{"viewer"},
 			},
 		},
 	},

@@ -11,8 +11,8 @@ import (
 type Config struct {
 	Server  ServerConfig  `yaml:"server"`
 	Auth    AuthConfig    `yaml:"auth"`
-	Linux   LinuxConfig   `yaml:"linux"`
-	Windows WindowsConfig `yaml:"windows"`
+	Linux   LinuxConfig   `yaml:"linux,omitempty"`   // Use omitempty to exclude empty fields
+	Windows WindowsConfig `yaml:"windows,omitempty"` // Use omitempty to exclude empty fields
 	Logging LogConfig     `yaml:"logging"`
 	API     APIConfig     `yaml:"api"`
 }
@@ -43,10 +43,15 @@ type AuthConfig struct {
 }
 
 type Credentials struct {
+	ID           string   `yaml:"id"` // Unique user ID
 	Username     string   `yaml:"username"`
 	Password     string   `yaml:"password,omitempty"` // Temporary field for plain password
-	PasswordHash string   `yaml:"password_hash"`      // Stored hash
+	PasswordHash string   `yaml:"-"`                  // Exclude from initial config creation
 	Roles        []string `yaml:"roles"`
+	AvatarURL    string   `yaml:"avatarUrl,omitempty"`   // Optional avatar URL
+	BannerURL    string   `yaml:"bannerUrl,omitempty"`   // Optional banner URL
+	DisplayName  string   `yaml:"displayName,omitempty"` // Optional display name
+	Bio          string   `yaml:"bio,omitempty"`         // Optional bio
 }
 
 func (c *Credentials) SetPassword(password string) error {
@@ -63,15 +68,13 @@ func (c *Credentials) VerifyPassword(password string) (bool, error) {
 }
 
 type LinuxConfig struct {
-	ServiceCommand string             `yaml:"serviceCommand"`
-	LogDirectory   string             `yaml:"logDirectory"`
-	Services       map[string]Service `yaml:"services"`
+	ServiceCommand string `yaml:"serviceCommand"`
+	LogDirectory   string `yaml:"logDirectory"`
 }
 
 type WindowsConfig struct {
-	ServiceCommand string             `yaml:"serviceCommand"`
-	LogDirectory   string             `yaml:"logDirectory"`
-	Services       map[string]Service `yaml:"services"`
+	ServiceCommand string `yaml:"serviceCommand"`
+	LogDirectory   string `yaml:"logDirectory"`
 }
 
 type LogConfig struct {

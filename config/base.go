@@ -2,11 +2,13 @@ package config
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -26,6 +28,21 @@ func InitConfig(filePath string) error {
 		// Create new config with defaults
 		config = defaultConfig
 
+		// Remove OS-specific config based on the current system
+		if runtime.GOOS == "linux" {
+			config.Windows = WindowsConfig{}
+		} else if runtime.GOOS == "windows" {
+			config.Linux = LinuxConfig{}
+		}
+
+		// Assign a numeric ID to each user and exclude password_hash
+		for username, user := range config.Auth.Users {
+			userID := generateNumericID()
+			user.ID = userID
+			user.PasswordHash = "" // Ensure password_hash is excluded
+			config.Auth.Users[username] = user
+		}
+
 		if err := saveConfigInternal(filePath); err != nil {
 			return fmt.Errorf("error creating initial config: %w", err)
 		}
@@ -34,8 +51,7 @@ func InitConfig(filePath string) error {
 		fmt.Printf("A new configuration file has been created at: %s\n", filePath)
 		fmt.Println("Please update the following values in the config file:")
 		fmt.Println("1. auth.secretKey")
-		fmt.Println("2. auth.users.admin.password")
-		fmt.Println("3. auth.users.viewer.password")
+		fmt.Println("2. auth.users.superadmin.password")
 		fmt.Println("\nAfter updating, restart the application.")
 		os.Exit(0)
 	}
@@ -47,6 +63,11 @@ func InitConfig(filePath string) error {
 
 	// Process any plain passwords and convert to hashes
 	if err := processPlainPasswords(); err != nil {
+		return err
+	}
+
+	// Assign IDs to users if not already set
+	if err := assignUserIDs(); err != nil {
 		return err
 	}
 
@@ -121,6 +142,40 @@ func processPlainPasswords() error {
 	}
 
 	return nil
+}
+
+// assignUserIDs assigns a numeric ID to users if not already set
+func assignUserIDs() error {
+	configLock.Lock()
+	defer configLock.Unlock()
+
+	idsAssigned := false
+
+	for username, user := range config.Auth.Users {
+		if user.ID == "" {
+			userID := generateNumericID()
+			user.ID = userID
+			config.Auth.Users[username] = user
+			idsAssigned = true
+		}
+	}
+
+	// If any IDs were assigned, save the config
+	if idsAssigned {
+		if err := saveConfigInternal(configPath); err != nil {
+			return fmt.Errorf("failed to save user IDs: %w", err)
+		}
+		fmt.Println("\n=== Configuration Update ===")
+		fmt.Println("User IDs have been assigned to users without IDs in the config.yaml file.")
+	}
+
+	return nil
+}
+
+// generateNumericID generates a numeric ID similar to Discord
+func generateNumericID() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("%d", rand.Int63())
 }
 
 // Internal function to save config without acquiring locks

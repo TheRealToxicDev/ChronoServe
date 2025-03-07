@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://img.toxicdev.me/users/510065483693817867/PnqzdogR.png" alt="SysManix Logo" width="300" />
+  <img src="./assets/sysmanix.png" alt="SysManix Logo" width="300" />
   <h3>Cross-Platform Service Management API</h3>
   <p>Secure, efficient, and consistent system service management across Windows and Linux platforms.</p>
 </div>

@@ -9,6 +9,9 @@
 # Coverage output
 *.out
 
+# Token Storage
+assets/tokens.json
+
 # Dependency directories
 # Uncomment the line below if you are using vendoring
 # vendor/
