@@ -3,15 +3,11 @@ package api
 // @title           SysManix API
 // @version         1.0.0
 // @description     Cross-platform service management API
-// @termsOfService  https://opensource.org/licenses/MIT
-
-// @contact.name   Toxic Development
-// @contact.url    https://github.com/toxic-development/sysmanix
+// @termsOfService  https://sysmanix.dev/terms
 
 // @license.name  AGPL-3.0
 // @license.url   https://opensource.org/license/agpl-v3
 
-// @host      localhost:8080
 // @BasePath  /
 
 // @securityDefinitions.apikey BearerAuth

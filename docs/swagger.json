@@ -3,18 +3,14 @@
     "info": {
         "description": "Cross-platform service management API",
         "title": "SysManix API",
-        "termsOfService": "https://opensource.org/licenses/MIT",
-        "contact": {
-            "name": "Toxic Development",
-            "url": "https://github.com/toxic-development/sysmanix"
-        },
+        "termsOfService": "https://sysmanix.dev/terms",
+        "contact": {},
         "license": {
             "name": "AGPL-3.0",
             "url": "https://opensource.org/license/agpl-v3"
         },
         "version": "1.0.0"
     },
-    "host": "localhost:8080",
     "basePath": "/",
     "paths": {
         "/auth/admin/tokens": {
@@ -925,6 +921,9 @@
                     "type": "string",
                     "example": "Nginx Web Server"
                 },
+                "isActive": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string",
                     "example": "nginx"
@@ -932,6 +931,9 @@
                 "status": {
                     "type": "string",
                     "example": "running"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         }

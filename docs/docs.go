@@ -9,11 +9,8 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "https://opensource.org/licenses/MIT",
-        "contact": {
-            "name": "Toxic Development",
-            "url": "https://github.com/toxic-development/sysmanix"
-        },
+        "termsOfService": "https://sysmanix.dev/terms",
+        "contact": {},
         "license": {
             "name": "AGPL-3.0",
             "url": "https://opensource.org/license/agpl-v3"
@@ -931,6 +928,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Nginx Web Server"
                 },
+                "isActive": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string",
                     "example": "nginx"
@@ -938,6 +938,9 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "running"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         }
@@ -955,7 +958,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
-	Host:             "localhost:8080",
+	Host:             "",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "SysManix API",

@@ -203,23 +203,24 @@ definitions:
       displayName:
         example: Nginx Web Server
         type: string
+      isActive:
+        type: boolean
       name:
         example: nginx
         type: string
       status:
         example: running
         type: string
+      updatedAt:
+        type: string
     type: object
-host: localhost:8080
 info:
-  contact:
-    name: Toxic Development
-    url: https://github.com/toxic-development/sysmanix
+  contact: {}
   description: Cross-platform service management API
   license:
     name: AGPL-3.0
     url: https://opensource.org/license/agpl-v3
-  termsOfService: https://opensource.org/licenses/MIT
+  termsOfService: https://sysmanix.dev/terms
   title: SysManix API
   version: 1.0.0
 paths:
