@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  sysmanix:
+    build: .
+    container_name: sysmanix
+    ports:
+      - "40200:40200"
+    volumes:
+      - ./config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped

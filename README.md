@@ -1,9 +1,5 @@
-# SysManix
-
-SysManix is a secure, cross-platform service management API that provides controlled access to system services through a RESTful interface. It bridges the gap between system administration and application management by offering a standardized way to interact with system services across different operating systems.
-
 <div align="center">
-  <img src="https://user-images.githubusercontent.com/1234567/example.png" alt="SysManix Logo" width="300" />
+  <img src="https://img.toxicdev.me/users/510065483693817867/PnqzdogR.png" alt="SysManix Logo" width="300" />
   <h3>Cross-Platform Service Management API</h3>
   <p>Secure, efficient, and consistent system service management across Windows and Linux platforms.</p>
 </div>
@@ -18,7 +14,7 @@ SysManix is a secure, cross-platform service management API that provides contro
 
 ## Overview
 
-SysManix provides a unified RESTful API for managing system services across different operating systems. It bridges the gap between system administration and application management with a secure, standardized interface.
+SysManix is a secure, cross-platform service management API that provides controlled access to system services through a RESTful interface. It bridges the gap between system administration and application management by offering a standardized way to interact with system services across different operating systems.
 
 ### Key Features
 

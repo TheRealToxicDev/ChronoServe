@@ -40,11 +40,26 @@ test-windows:
 	powershell -Command "$$env:CGO_ENABLED=1; go test -v -race ./..."
 
 test-coverage-windows:
-	powershell -Command "$$env:CGO_ENABLED=1; go test -v -race -coverprofile=coverage.out ./..."
+	powershell -Command "$$env:CGO_ENABLED=1; go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 lint:
 	golangci-lint run
 
-docker:
-	docker build -t sysmanix:$(VERSION) .
+# Build Docker image
+docker-build:
+	docker build -t sysmanix:latest .
+
+# Run Docker container
+docker-run:
+	docker-compose up -d
+
+# Stop Docker container
+docker-stop:
+	docker-compose down
+
+# Push Docker image to Docker Hub
+docker-push:
+	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
+	docker tag sysmanix:latest $(DOCKER_USERNAME)/sysmanix:latest
+	docker push $(DOCKER_USERNAME)/sysmanix:latest
