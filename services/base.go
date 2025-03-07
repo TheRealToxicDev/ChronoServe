@@ -28,6 +28,7 @@ type LogEntry struct {
 	Message string `json:"message"`
 }
 
+// ServiceHandler is an interface for handling service-related HTTP requests
 type ServiceHandler interface {
 	// Original HTTP handler methods
 	ListServices(w http.ResponseWriter, r *http.Request)

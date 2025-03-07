@@ -3,7 +3,9 @@ package services
 import (
 	"net/http"
 
-	svcpkg "github.com/toxic-development/sysmanix/services"
+	"github.com/toxic-development/sysmanix/services"
+	"github.com/toxic-development/sysmanix/services/linux"
+	"github.com/toxic-development/sysmanix/services/windows"
 	"github.com/toxic-development/sysmanix/utils"
 )
 
@@ -20,14 +22,14 @@ import (
 // @Security     BearerAuth
 // @Router       /services/logs/{name} [get]
 func ViewServiceLogs(w http.ResponseWriter, r *http.Request) {
-	var serviceHandler svcpkg.ServiceHandler
+	var serviceHandler services.ServiceHandler
 
 	// Choose the appropriate handler based on OS
 	switch utils.GetOperatingSystem() {
 	case "linux":
-		serviceHandler = svcpkg.NewSystemdService()
+		serviceHandler = linux.NewSystemdService()
 	case "windows":
-		serviceHandler = svcpkg.NewWindowsService()
+		serviceHandler = windows.NewWindowsService()
 	default:
 		utils.WriteErrorResponse(w, "Unsupported operating system", http.StatusInternalServerError)
 		return

@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/toxic-development/sysmanix/services"
+	"github.com/toxic-development/sysmanix/services/linux"
+	"github.com/toxic-development/sysmanix/services/windows"
 	"github.com/toxic-development/sysmanix/utils"
 )
 
@@ -29,9 +31,9 @@ func GetServiceStatus(w http.ResponseWriter, r *http.Request) {
 	// Choose the appropriate handler based on OS
 	switch utils.GetOperatingSystem() {
 	case "linux":
-		serviceHandler = services.NewSystemdService()
+		serviceHandler = linux.NewSystemdService()
 	case "windows":
-		serviceHandler = services.NewWindowsService()
+		serviceHandler = windows.NewWindowsService()
 	default:
 		utils.WriteErrorResponse(w, "Unsupported operating system", http.StatusInternalServerError)
 		return
