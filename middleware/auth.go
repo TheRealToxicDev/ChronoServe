@@ -5,12 +5,28 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/toxic-development/sysmanix/config"
 	"github.com/toxic-development/sysmanix/utils"
 )
+
+// TokenInfo stores information about active tokens
+type TokenInfo struct {
+	TokenID   string    // Unique identifier for the token (e.g. jti claim)
+	UserID    string    // User ID associated with the token
+	Roles     []string  // User roles
+	IssuedAt  time.Time // When the token was issued
+	ExpiresAt time.Time // When the token expires
+}
+
+// TokenStore manages active tokens
+type TokenStore struct {
+	tokens map[string]TokenInfo
+	mu     sync.RWMutex
+}
 
 type Claims struct {
 	jwt.RegisteredClaims
@@ -27,6 +43,9 @@ type AuthConfig struct {
 var (
 	logger     *utils.Logger
 	authConfig AuthConfig
+	tokenStore = &TokenStore{
+		tokens: make(map[string]TokenInfo),
+	}
 )
 
 // InitAuth initializes the authentication configuration
@@ -44,6 +63,9 @@ func InitAuth(cfg AuthConfig) {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
 	authConfig = cfg
+
+	// Start token cleanup routine
+	go cleanupExpiredTokens()
 }
 
 // AuthMiddleware provides JWT authentication
@@ -71,6 +93,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 // CreateToken generates a new JWT token
 func CreateToken(userID string, roles []string) (string, error) {
+	// Generate a unique token ID
+	tokenID, err := utils.GenerateUUID()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token ID: %w", err)
+	}
+
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(authConfig.TokenDuration)),
@@ -78,13 +106,27 @@ func CreateToken(userID string, roles []string) (string, error) {
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    authConfig.IssuedBy,
 			Subject:   userID,
+			ID:        tokenID, // Add JTI claim for token identification
 		},
 		UserID: userID,
 		Roles:  roles,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(authConfig.SecretKey))
+	signedToken, err := token.SignedString([]byte(authConfig.SecretKey))
+
+	if err == nil {
+		// Store token information
+		storeToken(TokenInfo{
+			TokenID:   tokenID,
+			UserID:    userID,
+			Roles:     roles,
+			IssuedAt:  time.Now(),
+			ExpiresAt: time.Now().Add(authConfig.TokenDuration),
+		})
+	}
+
+	return signedToken, err
 }
 
 func validateToken(tokenString string) (*Claims, error) {
@@ -190,4 +232,111 @@ func RequireAnyRole(roles ...string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// ListValidTokens returns a list of all valid tokens
+func ListValidTokens() []TokenInfo {
+	tokenStore.mu.RLock()
+	defer tokenStore.mu.RUnlock()
+
+	validTokens := make([]TokenInfo, 0, len(tokenStore.tokens))
+	now := time.Now()
+
+	for _, token := range tokenStore.tokens {
+		if token.ExpiresAt.After(now) {
+			validTokens = append(validTokens, token)
+		}
+	}
+
+	return validTokens
+}
+
+// ListUserTokens returns all valid tokens for a specific user
+func ListUserTokens(userID string) []TokenInfo {
+	tokenStore.mu.RLock()
+	defer tokenStore.mu.RUnlock()
+
+	userTokens := make([]TokenInfo, 0)
+	now := time.Now()
+
+	for _, token := range tokenStore.tokens {
+		if token.UserID == userID && token.ExpiresAt.After(now) {
+			userTokens = append(userTokens, token)
+		}
+	}
+
+	return userTokens
+}
+
+// storeToken adds a token to the token store
+func storeToken(info TokenInfo) {
+	tokenStore.mu.Lock()
+	defer tokenStore.mu.Unlock()
+
+	tokenStore.tokens[info.TokenID] = info
+	logger.Debug("Token stored for user %s, expires at %v", info.UserID, info.ExpiresAt)
+}
+
+// cleanupExpiredTokens periodically removes expired tokens from the store
+func cleanupExpiredTokens() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		removeExpired()
+	}
+}
+
+// removeExpired removes all expired tokens from the token store
+func removeExpired() {
+	tokenStore.mu.Lock()
+	defer tokenStore.mu.Unlock()
+
+	now := time.Now()
+	removed := 0
+
+	for id, token := range tokenStore.tokens {
+		if token.ExpiresAt.Before(now) {
+			delete(tokenStore.tokens, id)
+			removed++
+		}
+	}
+
+	if removed > 0 {
+		logger.Debug("Removed %d expired tokens", removed)
+	}
+}
+
+// RevokeToken removes a specific token from the token store
+func RevokeToken(tokenID string) bool {
+	tokenStore.mu.Lock()
+	defer tokenStore.mu.Unlock()
+
+	if _, exists := tokenStore.tokens[tokenID]; exists {
+		delete(tokenStore.tokens, tokenID)
+		logger.Debug("Token %s revoked", tokenID)
+		return true
+	}
+
+	return false
+}
+
+// RevokeUserTokens revokes all tokens for a specific user
+func RevokeUserTokens(userID string) int {
+	tokenStore.mu.Lock()
+	defer tokenStore.mu.Unlock()
+
+	count := 0
+	for id, token := range tokenStore.tokens {
+		if token.UserID == userID {
+			delete(tokenStore.tokens, id)
+			count++
+		}
+	}
+
+	if count > 0 {
+		logger.Debug("Revoked %d tokens for user %s", count, userID)
+	}
+
+	return count
 }

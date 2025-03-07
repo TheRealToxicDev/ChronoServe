@@ -22,7 +22,7 @@
     // General editor settings
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.organizeImports": true
+        "source.organizeImports": "explicit"
     },
     "editor.rulers": [100],
     "files.trimTrailingWhitespace": true,
@@ -42,7 +42,7 @@
         "**/*.exe": true,
         "**/bin": true
     },
-    
+
     // Explorer settings
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {

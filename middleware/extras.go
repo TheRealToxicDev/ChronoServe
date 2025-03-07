@@ -30,6 +30,11 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(sw, r)
 
+		// Ensure we have a status code (default to 200 OK if not set)
+		if sw.status == 0 {
+			sw.status = http.StatusOK
+		}
+
 		log.Printf(
 			"%s %s %s %d %s",
 			r.RemoteAddr,
@@ -43,10 +48,23 @@ func Logger(next http.Handler) http.Handler {
 
 type statusWriter struct {
 	http.ResponseWriter
-	status int
+	status  int
+	written bool
 }
 
 func (w *statusWriter) WriteHeader(status int) {
-	w.status = status
-	w.ResponseWriter.WriteHeader(status)
+	// Only call the underlying WriteHeader once
+	if !w.written {
+		w.status = status
+		w.ResponseWriter.WriteHeader(status)
+		w.written = true
+	}
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	// If WriteHeader wasn't explicitly called before, call it with 200 OK
+	if !w.written {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
 }

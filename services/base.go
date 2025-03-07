@@ -9,9 +9,11 @@ import (
 
 // ServiceInfo represents basic information about a service
 type ServiceInfo struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"displayName"`
-	Status      string `json:"status"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"displayName"`
+	Status      string    `json:"status"`
+	IsActive    bool      `json:"isActive"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // ServiceStatus represents detailed status of a service

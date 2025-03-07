@@ -40,6 +40,7 @@ func SetupRoutes() http.Handler {
 
 	// Register all route groups
 	registerBaseRoutes(mux)
+	registerAuthRoutes(mux)
 	registerServiceRoutes(mux)
 
 	// Only register Swagger if enabled in config

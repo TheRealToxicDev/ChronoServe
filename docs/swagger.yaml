@@ -1,5 +1,22 @@
 basePath: /
 definitions:
+  auth.AdminRevokeRequest:
+    properties:
+      userId:
+        type: string
+    type: object
+  auth.ErrorResponse:
+    properties:
+      code:
+        example: 404
+        type: integer
+      message:
+        example: An error occurred while processing your request
+        type: string
+      status:
+        example: error
+        type: string
+    type: object
   auth.LoginRequest:
     properties:
       password:
@@ -14,6 +31,57 @@ definitions:
           type: string
         type: array
       token:
+        type: string
+    type: object
+  auth.RefreshTokenResponse:
+    properties:
+      data:
+        properties:
+          token:
+            type: string
+        type: object
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  auth.RevokeTokenRequest:
+    properties:
+      tokenId:
+        type: string
+    type: object
+  auth.TokenActionResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  auth.TokenInfo:
+    properties:
+      expiresAt:
+        type: string
+      issuedAt:
+        type: string
+      roles:
+        items:
+          type: string
+        type: array
+      tokenId:
+        type: string
+      userId:
+        type: string
+    type: object
+  auth.TokensResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/auth.TokenInfo'
+        type: array
+      message:
+        type: string
+      status:
         type: string
     type: object
   base.HealthStatus:
@@ -155,6 +223,102 @@ info:
   title: SysManix API
   version: 1.0.0
 paths:
+  /auth/admin/tokens:
+    get:
+      consumes:
+      - application/json
+      description: Returns all valid tokens in the system (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokensResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all tokens (admin)
+      tags:
+      - auth
+  /auth/admin/tokens/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revokes all tokens for a specific user (admin only)
+      parameters:
+      - description: User whose tokens to revoke
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.AdminRevokeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke user tokens (admin)
+      tags:
+      - auth
+  /auth/admin/tokens/user:
+    get:
+      consumes:
+      - application/json
+      description: Returns all valid tokens for a specific user (admin only)
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokensResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List user tokens (admin)
+      tags:
+      - auth
   /auth/login:
     post:
       consumes:
@@ -175,6 +339,105 @@ paths:
           schema:
             $ref: '#/definitions/auth.LoginResponse'
       summary: Authenticate user
+      tags:
+      - auth
+  /auth/tokens:
+    get:
+      consumes:
+      - application/json
+      description: Returns all valid tokens for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokensResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List user tokens
+      tags:
+      - auth
+  /auth/tokens/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generates a new token and invalidates the current one
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.RefreshTokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Refresh token
+      tags:
+      - auth
+  /auth/tokens/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revokes a specific token
+      parameters:
+      - description: Token to revoke
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RevokeTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke token
+      tags:
+      - auth
+  /auth/tokens/revoke-all:
+    post:
+      consumes:
+      - application/json
+      description: Revokes all tokens for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenActionResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke all user tokens
       tags:
       - auth
   /health:

@@ -9,9 +9,12 @@
 5. [Role-Based Access Control](#role-based-access-control)
 6. [Security Implementation Details](#security-implementation-details)
 7. [Command-Line Authentication](#command-line-authentication)
-8. [Troubleshooting](#troubleshooting)
-9. [Best Practices](#best-practices)
-10. [API Examples](#api-examples)
+8. [GUI Tool Examples](#gui-tool-examples)
+9. [Troubleshooting](#troubleshooting)
+10. [Best Practices](#best-practices)
+11. [API Examples](#api-examples)
+12. [Security Considerations](#security-considerations)
+13. [Further Reading](#further-reading)
 
 ## Overview
 
@@ -447,6 +450,40 @@ services = requests.get(
 print(json.dumps(services.json(), indent=2))
 ```
 
+## GUI Tool Examples
+
+### Postman
+
+![Postman Authentication](https://i.imgur.com/example-postman.png)
+
+1. Create a new POST request to `http://localhost:40200/auth/login`
+2. Set the body to raw JSON:
+   ```json
+   {
+       "username": "admin",
+       "password": "your-secure-password"
+   }
+   ```
+3. Send the request and save the token
+4. For subsequent requests:
+   - In the Authorization tab, select "Bearer Token"
+   - Paste your token in the Token field
+
+### Insomnia
+
+1. Create a new POST request to `http://localhost:40200/auth/login`
+2. Set the body to JSON:
+   ```json
+   {
+       "username": "admin",
+       "password": "your-secure-password"
+   }
+   ```
+3. Send the request and copy the token from the response
+4. For subsequent requests:
+   - In the Auth tab, select "Bearer Token"
+   - Paste your token
+
 ## Troubleshooting
 
 ### Common Authentication Issues
@@ -624,6 +661,49 @@ Content-Type: application/json
 }
 ```
 
----
+## Security Considerations
 
-For more information on how authentication integrates with service management, see [SERVICE_MANAGEMENT.md](SERVICE_MANAGEMENT.md) and [PERMISSIONS.md](PERMISSIONS.md).
+### JWT Token Leakage Prevention
+
+JWT tokens should be treated as sensitive data. If a token is compromised, an attacker could gain access to your system until the token expires.
+
+To mitigate token leakage risks:
+
+1. **Never store tokens in client-side storage (localStorage)** in web applications
+2. Use HttpOnly cookies or secure memory for token storage
+3. Implement token revocation for compromised tokens
+4. Use short token expiration periods for sensitive systems
+
+### Rate Limiting
+
+SysManix implements rate limiting for login attempts to prevent brute force attacks:
+
+- By default, 5 failed login attempts results in a temporary lockout (5 minutes)
+- Rate limiting is tracked by both username and IP address
+- Successful login resets the failed attempt counter
+
+### Audit Logging
+
+Authentication events are logged to `auth.log` with the following details:
+
+1. Timestamp
+2. Event type (login attempt, success, failure)
+3. Username
+4. Source IP address
+5. User agent
+6. Success/failure reason
+
+Example:
+```
+2023-06-15 13:45:22 [INFO] Login successful: username=admin, ip=192.168.1.5
+2023-06-15 13:46:15 [WARN] Login failed: username=admin, ip=192.168.1.100, reason="Invalid credentials"
+2023-06-15 13:47:03 [WARN] Rate limit reached: username=unknown, ip=192.168.1.200, attempts=5
+```
+
+## Further Reading
+
+- [OWASP JWT Security Cheatsheet](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
+- [NIST Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
+- [Argon2 Password Hashing](https://github.com/P-H-C/phc-winner-argon2)
+- [SysManix Service Management Guide](SERVICE_MANAGEMENT.md)
+- [SysManix Permissions Guide](PERMISSIONS.md)

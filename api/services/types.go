@@ -13,9 +13,11 @@ type ServiceListResponse struct {
 
 // ServiceSummary represents basic information about a service
 type ServiceSummary struct {
-	Name        string `json:"name" example:"nginx"`
-	DisplayName string `json:"displayName" example:"Nginx Web Server"`
-	Status      string `json:"status" example:"running"`
+	Name        string    `json:"name" example:"nginx"`
+	DisplayName string    `json:"displayName" example:"Nginx Web Server"`
+	Status      string    `json:"status" example:"running"`
+	IsActive    bool      `json:"isActive"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // ServiceStatusResponse represents the response format for service status

@@ -1,5 +1,37 @@
 # SysManix Troubleshooting Guide
 
+## Table of Contents
+- [Common Issues](#common-issues)
+  - [Authentication Issues](#authentication-issues)
+    - [Invalid Credentials Error](#invalid-credentials-error)
+    - [Token Validation Failed](#token-validation-failed)
+  - [Service Access Issues](#service-access-issues)
+    - [Permission Denied](#permission-denied)
+    - [Service Not Found](#service-not-found)
+    - [Protected System Service](#protected-system-service)
+    - [Service Operation Timeout](#service-operation-timeout)
+  - [Configuration Issues](#configuration-issues)
+    - [Default Security Values](#default-security-values)
+    - [Port Already in Use](#port-already-in-use)
+  - [Logging Issues](#logging-issues)
+    - [Missing Log Files](#missing-log-files)
+- [Debugging Tips](#debugging-tips)
+  - [Enable Debug Logging](#enable-debug-logging)
+  - [Check Log Files](#check-log-files)
+  - [Test Health Endpoint](#test-health-endpoint)
+  - [Verify Service Status](#verify-service-status)
+- [Common Error Messages](#common-error-messages)
+- [Network Troubleshooting](#network-troubleshooting)
+  - [Connection Refused](#connection-refused)
+  - [CORS Errors](#cors-errors)
+- [Performance Issues](#performance-issues)
+  - [Slow API Response](#slow-api-response)
+  - [High Memory Usage](#high-memory-usage)
+- [Installation Problems](#installation-problems)
+  - [Missing Dependencies](#missing-dependencies)
+  - [Permission Issues](#permission-issues)
+- [Getting Help](#getting-help)
+
 ## Common Issues
 
 ### Authentication Issues
@@ -107,10 +139,10 @@ This is a security feature. Critical system services are protected from modifica
 
 1. Windows protected services include:
    - `wininit`, `csrss`, `services`, `lsass`, `winlogon`, and other critical Windows components
-   
+
 2. Linux protected services include:
    - `systemd`, `systemd-journald`, `sshd`, `dbus`, and other core system services
-   
+
 3. Use alternate services that can be safely modified
 
 #### Service Operation Timeout
@@ -238,6 +270,133 @@ Invoke-RestMethod -Uri "http://localhost:40200/services/status/wuauserv" -Header
 | "Insufficient permissions" | Missing required role | Check user roles |
 | "Service not found" | Invalid service name | Use correct service identifier |
 | "Default secret key" | Security risk | Update auth.secretKey |
+
+### Network Troubleshooting
+
+#### Connection Refused
+
+**Symptom:**
+```
+"Failed to connect to localhost:40200: Connection refused"
+```
+
+**Common Causes:**
+1. SysManix service not running
+2. Incorrect port configuration
+3. Firewall blocking connection
+
+**Solution:**
+1. Check if service is running:
+```powershell
+# For Windows
+Get-Process -Name SysManix* -ErrorAction SilentlyContinue
+```
+
+2. Verify listening port:
+```powershell
+netstat -ano | findstr :40200
+```
+
+3. Check firewall settings:
+```powershell
+# For Windows
+New-NetFirewallRule -DisplayName "Allow SysManix" -Direction Inbound -LocalPort 40200 -Protocol TCP -Action Allow
+```
+
+#### CORS Errors
+
+**Symptom:**
+Browser console shows:
+```
+Access to fetch at 'http://localhost:40200/auth' from origin 'http://localhost:3000' has been blocked by CORS policy
+```
+
+**Solution:**
+1. Update config.yaml to allow your frontend origin:
+```yaml
+server:
+  cors:
+    allowed_origins: ["http://localhost:3000"]
+    allowed_methods: ["GET", "POST", "PUT", "DELETE"]
+    allowed_headers: ["Content-Type", "Authorization"]
+```
+
+2. Restart the application
+
+### Performance Issues
+
+#### Slow API Response
+
+**Symptom:**
+API calls taking more than 1-2 seconds to respond
+
+**Solutions:**
+1. Check system resource usage:
+```powershell
+# Check CPU/Memory
+Get-Process -Name SysManix* | Select-Object CPU, WorkingSet, ID
+```
+
+2. Review log files for slow operations
+3. Enable profiling in config:
+```yaml
+debug:
+  profiling: true
+  profiling_endpoint: "/debug/pprof"
+```
+
+4. Access profiles at http://localhost:40200/debug/pprof/ (requires admin login)
+
+#### High Memory Usage
+
+**Symptom:**
+SysManix process consuming excessive memory
+
+**Solutions:**
+1. Check for memory leaks in logs
+2. Adjust cache settings in config:
+```yaml
+cache:
+  max_size: 100  # Reduce cache size
+  ttl: 300       # Shorter time-to-live (seconds)
+```
+
+3. Restart application periodically using a scheduled task
+
+### Installation Problems
+
+#### Missing Dependencies
+
+**Symptom:**
+```
+"Failed to start: exec: xyz: executable file not found in %PATH%"
+```
+
+**Solutions:**
+1. Install required dependencies:
+   - For Windows: PowerShell 5.0+ and .NET Framework 4.5+
+   - For Linux: systemd and required libraries
+
+2. For Docker installations, ensure correct base image:
+```dockerfile
+# Use correct base image
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+# OR
+FROM ubuntu:20.04
+```
+
+#### Permission Issues
+
+**Symptom:**
+```
+"Failed to access service control manager: Access is denied"
+```
+
+**Solutions:**
+1. Run application with administrative privileges
+2. Check service user permissions:
+   - Windows: Run as administrator
+   - Linux: Use sudo or proper systemd service user
 
 ## Getting Help
 

@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"crypto/rand"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -44,4 +47,18 @@ func IsProcessRunning(pid int) bool {
 
 	// On Unix-like systems, FindProcess only returns a valid process if it exists
 	return true
+}
+
+// GenerateUUID creates a new UUID v4 (random) and returns it as a string
+func GenerateUUID() (string, error) {
+	uuid := make([]byte, 16)
+	n, err := io.ReadFull(rand.Reader, uuid)
+	if n != len(uuid) || err != nil {
+		return "", err
+	}
+	// variant bits; see section 4.1.1
+	uuid[8] = uuid[8]&^0xc0 | 0x80
+	// version 4 (pseudo-random); see section 4.1.3
+	uuid[6] = uuid[6]&^0xf0 | 0x40
+	return fmt.Sprintf("%x-%x-%x-%x-%x", uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:]), nil
 }
