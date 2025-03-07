@@ -154,6 +154,8 @@ $token = $response.data.token
 - Plain text passwords are removed from config after hashing
 - JWT secret key must be changed from default
 - Use strong passwords that meet your security requirements
+- Critical system services are protected from modification
+- Administrative privileges are required for service control operations
 
 ## Common Services
 
@@ -171,6 +173,18 @@ $headers = @{
 
 Invoke-RestMethod -Uri "http://localhost:40200/services/logs/wuauserv?lines=50" -Headers $headers
 ```
+
+### Protected Services
+
+SysManix prevents operations on critical system services to maintain system stability:
+
+#### Windows Protected Services
+- Windows start-up processes (`wininit`, `csrss`, `lsass`, etc.)
+- Core Windows services (`spooler`, `EventLog`, `TrustedInstaller`, etc.)
+
+#### Linux Protected Services
+- Core system daemons (`systemd`, `dbus`, `sshd`, etc.)
+- System management services (`systemd-logind`, `systemd-journald`, etc.)
 
 ## Troubleshooting
 

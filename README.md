@@ -14,6 +14,8 @@ A secure, cross-platform service management API that provides controlled access 
 - 🚦 Health monitoring with detailed metrics
 - 🔄 Graceful shutdown handling
 - 🛡️ Security-first design with RBAC
+- 🔒 Protected critical system services
+- ⏱️ Non-blocking service management with timeouts
 
 ## Quick Links
 
@@ -94,6 +96,8 @@ Invoke-RestMethod -Uri "http://localhost:40200/services/status/EventLog" -Header
 - Automatic plain-text password removal
 - Secure configuration handling
 - Detailed security logging
+- Protected system-critical services
+- Proper permission error handling
 
 ## Development
 

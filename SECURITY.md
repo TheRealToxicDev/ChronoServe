@@ -9,10 +9,10 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously at ChronoServe. Please follow these steps to report security issues:
+We take security seriously at SysManix. Please follow these steps to report security issues:
 
 1. **DO NOT** open public issues for security vulnerabilities
-2. Report issues - [here](https://github.com/therealtoxicdev/chronoserve/issues)
+2. Report issues - [here](https://github.com/toxic-development/sysmanix/issues)
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -62,6 +62,7 @@ chown root:root config.yaml
 - Granular permission system
 - Limited service access based on roles
 - Token validation on every request
+- Protected service list to prevent critical system modifications
 
 ### Password Security
 - Enforced password complexity

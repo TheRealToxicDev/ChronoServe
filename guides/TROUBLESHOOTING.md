@@ -91,6 +91,48 @@ Invoke-RestMethod -Uri "http://localhost:40200/services" -Headers $headers
 - `EventLog` (Event Logging)
 - `WinRM` (Remote Management)
 
+#### Protected System Service
+
+**Symptom:**
+```
+{
+    "success": false,
+    "error": "operation not allowed on protected system service: wininit",
+    "code": 403
+}
+```
+
+**Solution:**
+This is a security feature. Critical system services are protected from modifications to prevent system damage:
+
+1. Windows protected services include:
+   - `wininit`, `csrss`, `services`, `lsass`, `winlogon`, and other critical Windows components
+   
+2. Linux protected services include:
+   - `systemd`, `systemd-journald`, `sshd`, `dbus`, and other core system services
+   
+3. Use alternate services that can be safely modified
+
+#### Service Operation Timeout
+
+**Symptom:**
+```
+"timeout waiting for service to start (status: starting)"
+```
+
+**Solution:**
+1. Service operation may be in progress but taking longer than the timeout (10 seconds)
+2. Check service status manually:
+```powershell
+# For Windows
+Get-Service servicename
+
+# For Linux
+systemctl status servicename
+```
+3. Some services have dependencies that need to start first
+4. Try starting the service with elevated privileges directly on the system
+
 ### Configuration Issues
 
 #### Default Security Values

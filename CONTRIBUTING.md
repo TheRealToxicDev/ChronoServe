@@ -1,6 +1,6 @@
-# Contributing to ChronoServe
+# Contributing to SysManix
 
-We love your input! We want to make contributing to ChronoServe as easy and transparent as possible.
+We love your input! We want to make contributing to SysManix as easy and transparent as possible.
 
 ## Development Process
 
@@ -14,8 +14,8 @@ We love your input! We want to make contributing to ChronoServe as easy and tran
 
 ```powershell
 # Clone your fork
-git clone https://github.com/YOUR-USERNAME/ChronoServe.git
-cd ChronoServe
+git clone https://github.com/toxic-development/SysManix.git
+cd SysManix
 
 # Install dependencies
 go mod download

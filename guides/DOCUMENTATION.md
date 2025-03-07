@@ -129,6 +129,36 @@ users:
 | Stop | POST /services/stop/{name} | admin | Stop a service |
 | Logs | GET /services/logs/{name} | admin, viewer | View service logs |
 
+### Service Protection
+
+SysManix implements a protection mechanism for critical system services:
+
+```go
+// Windows protected services
+var criticalWindowsServices = []string{
+    "wininit",           // Windows Start-Up Application
+    "csrss",             // Client Server Runtime Process
+    "services",          // Services and Controller app
+    "lsass",             // Local Security Authority Process
+    "winlogon",          // Windows Logon
+    "smss",              // Windows Session Manager
+    // ...other critical services
+}
+
+// Linux protected services
+var criticalLinuxServices = []string{
+    "systemd",             // Core system daemon
+    "systemd-journald",    // Journal logging service
+    "systemd-logind",      // Login service
+    "systemd-udevd",       // udev management daemon
+    "sshd",                // SSH daemon
+    "dbus",                // D-Bus system message bus
+    // ...other critical services
+}
+```
+
+When a user attempts to modify a protected service, the system returns a 403 Forbidden response with an appropriate error message.
+
 ### Common Windows Services
 - Windows Update (`wuauserv`)
 - Event Log (`EventLog`)
