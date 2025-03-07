@@ -1,0 +1,18 @@
+{
+    "recommendations": [
+        "golang.go",                  // Official Go extension
+        "premparihar.gotestexplorer", // Visual Go test explorer
+        "nhoizey.gremlins",           // Reveals invisible characters
+        "766b.go-outliner",           // Displays Go file structure
+        "aldijav.golangwithdagger",   // Dependency injection for Go
+        "streetsidesoftware.code-spell-checker", // Spellchecker
+        "github.copilot",             // AI code assistant
+        "github.vscode-pull-request-github", // GitHub integration
+        "shardulm94.trailing-spaces", // Highlight trailing spaces
+        "vscode-icons-team.vscode-icons", // Better file icons
+        "redhat.vscode-yaml",         // YAML language support
+        "davidanson.vscode-markdownlint", // Markdown linting
+        "ms-vscode-remote.remote-ssh", // Remote development
+        "ms-azuretools.vscode-docker" // Docker support
+    ]
+}

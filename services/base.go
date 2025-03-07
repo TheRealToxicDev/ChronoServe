@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"net/http"
 	"regexp"
 	"time"
@@ -51,3 +52,18 @@ func (h *BaseServiceHandler) ValidateServiceName(name string) bool {
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9\-_.]+$`, name)
 	return matched
 }
+
+// Common error definitions for the services package
+var (
+	// ErrInvalidServiceName is returned when a service name fails validation
+	ErrInvalidServiceName = errors.New("invalid service name")
+
+	// ErrProtectedService is returned when attempting operations on protected services
+	ErrProtectedService = errors.New("operation not allowed on protected system service")
+
+	// ErrServiceNotFound is returned when a requested service doesn't exist
+	ErrServiceNotFound = errors.New("service not found")
+
+	// ErrInsufficientPermissions is returned when the user lacks required permissions
+	ErrInsufficientPermissions = errors.New("insufficient permissions to perform this operation")
+)

@@ -21,6 +21,8 @@ go.work.sum
 bin/
 dist/
 Makefile.dev
+tests/
+test/
 
 # Temporary files
 client/temp.go

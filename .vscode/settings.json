@@ -1,0 +1,60 @@
+{
+    // Go configuration
+    "go.useLanguageServer": true,
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": [
+        "--fast"
+    ],
+    "go.testFlags": [
+        "-v"
+    ],
+    "go.testTimeout": "30s",
+    "go.coverageDecorator": {
+        "type": "highlight",
+        "coveredHighlightColor": "rgba(64,128,128,0.5)",
+        "uncoveredHighlightColor": "rgba(128,64,64,0.25)"
+    },
+    "go.formatTool": "goimports",
+    "go.buildOnSave": "workspace",
+    "go.testOnSave": false,
+    "go.vetOnSave": "workspace",
+
+    // General editor settings
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "editor.rulers": [100],
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+
+    // File associations
+    "files.associations": {
+        "*.go": "go",
+        "go.mod": "go",
+        "go.sum": "go"
+    },
+
+    // Exclude directories from search
+    "search.exclude": {
+        "**/vendor": true,
+        "**/node_modules": true,
+        "**/*.exe": true,
+        "**/bin": true
+    },
+    
+    // Explorer settings
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+        "*.go": "${capture}_test.go",
+        "go.mod": "go.sum"
+    },
+
+    // Terminal settings
+    "terminal.integrated.env.windows": {
+        "PATH": "${env:PATH};${workspaceFolder}/bin"
+    },
+    "terminal.integrated.env.linux": {
+        "PATH": "${env:PATH}:${workspaceFolder}/bin"
+    }
+}

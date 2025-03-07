@@ -1,0 +1,100 @@
+{
+    "Go test function": {
+        "prefix": "test",
+        "body": [
+            "func Test$1(t *testing.T) {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Create a new test function"
+    },
+    "Table driven test": {
+        "prefix": "tabtest",
+        "body": [
+            "func Test$1(t *testing.T) {",
+            "\ttestCases := []struct{",
+            "\t\tname string",
+            "\t\t$2",
+            "\t}{",
+            "\t\t{",
+            "\t\t\tname: \"$3\",",
+            "\t\t\t$4",
+            "\t\t},",
+            "\t}",
+            "\t",
+            "\tfor _, tc := range testCases {",
+            "\t\tt.Run(tc.name, func(t *testing.T) {",
+            "\t\t\t$0",
+            "\t\t})",
+            "\t}",
+            "}"
+        ],
+        "description": "Create a table-driven test"
+    },
+    "Error check": {
+        "prefix": "iferr",
+        "body": [
+            "if err != nil {",
+            "\treturn $1fmt.Errorf(\"$2: %w\", err)",
+            "}"
+        ],
+        "description": "Check for error and return wrapped error"
+    },
+    "HTTP handler function": {
+        "prefix": "handler",
+        "body": [
+            "func $1(w http.ResponseWriter, r *http.Request) {",
+            "\tif r.Method != http.Method$2 {",
+            "\t\tutils.WriteErrorResponse(w, \"Method not allowed\", http.StatusMethodNotAllowed)",
+            "\t\treturn",
+            "\t}",
+            "\t",
+            "\t$0",
+            "\t",
+            "\tutils.WriteSuccessResponse(w, \"$3\", $4)",
+            "}"
+        ],
+        "description": "HTTP handler function"
+    },
+    "SysManix file header": {
+        "prefix": "header",
+        "body": [
+            "// Copyright (C) 2023-2025 ToxicDev",
+            "//",
+            "// This program is free software: you can redistribute it and/or modify",
+            "// it under the terms of the GNU Affero General Public License as published by", 
+            "// the Free Software Foundation, either version 3 of the License, or",
+            "// (at your option) any later version.",
+            "//", 
+            "// This program is distributed in the hope that it will be useful,",
+            "// but WITHOUT ANY WARRANTY; without even the implied warranty of",
+            "// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the",
+            "// GNU Affero General Public License for more details.",
+            "",
+            "package $1",
+            "",
+            "$0"
+        ],
+        "description": "Add SysManix license header"
+    },
+    "Log error": {
+        "prefix": "logerr",
+        "body": [
+            "if err != nil {",
+            "\tlog.Error(\"$1\", \"error\", err)",
+            "\t$0",
+            "}"
+        ],
+        "description": "Log an error"
+    },
+    "Service handler interface implementation check": {
+        "prefix": "svcimpl",
+        "body": [
+            "// Ensure $1 implements ServiceHandler",
+            "var _ ServiceHandler = (*$1)(nil)",
+            "",
+            "$0"
+        ],
+        "description": "Add service handler implementation check"
+    }
+}
