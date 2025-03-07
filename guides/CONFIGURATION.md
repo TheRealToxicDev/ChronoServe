@@ -1,428 +1,403 @@
 # SysManix Configuration Guide
 
-This guide explains how to configure SysManix for optimal performance, security, and functionality.
+This guide explains how to configure SysManix to meet your specific requirements.
 
-## Configuration File Location
+## Configuration File
 
-SysManix uses a YAML configuration file that can be located at:
+SysManix uses a YAML configuration file (`config.yaml`) to control its behavior. The configuration file is automatically created on first run if it doesn't exist, populated with default values.
 
-- **Windows**: `C:\Program Files\SysManix\config.yaml` (default installation)
-- **Linux**: `/etc/sysmanix/config.yaml`
+### Configuration File Location
 
-## Configuration Structure
+By default, SysManix looks for its configuration in the following locations:
 
-The configuration file is organized into several sections:
+- **Windows**: In the same directory as the executable
+- **Linux**: In the same directory as the executable, or at `/etc/sysmanix/config.yaml` if run as a system service
 
-```yaml
-server:           # API server settings
-auth:             # Authentication settings
-logging:          # Logging configuration
-windows:          # Windows-specific settings
-linux:            # Linux-specific settings
-updates:          # Update checking settings
+You can specify a custom configuration file location using the `-config` flag:
+
+```bash
+./sysmanix -config /path/to/custom/config.yaml
 ```
 
-## Server Configuration
+## Configuration Sections
 
-```yaml
-server:
-  host: "localhost"      # Interface to bind to (use "0.0.0.0" to listen on all interfaces)
-  port: 40200            # Port to listen on
-  readTimeout: "15s"     # HTTP read timeout
-  writeTimeout: "15s"    # HTTP write timeout
-  maxHeaderBytes: 1048576 # Maximum size of request headers (1MB)
-```
+### Server Configuration
 
-### Binding to Different Interfaces
-
-- `localhost`: Only accept connections from the local machine
-- `0.0.0.0`: Accept connections from any network interface (for remote access)
-- Specific IP: Bind to a specific network interface (e.g., "192.168.1.100")
-
-### Changing the Port
-
-If port 40200 is already in use, you can change it:
+Controls the HTTP server settings:
 
 ```yaml
 server:
-  port: 8080  # Use any available port
+  host: "localhost"   # Interface to listen on (use "0.0.0.0" for all interfaces)
+  port: 40200         # Port to listen on
+  readTimeout: "15s"  # HTTP read timeout
+  writeTimeout: "15s" # HTTP write timeout
+  maxHeaderBytes: 1048576  # Max header size in bytes (1MB)
 ```
 
-Remember to update your firewall rules and client configurations if you change the port.
+### Authentication Configuration
 
-## Authentication Configuration
+Controls the authentication system:
 
 ```yaml
 auth:
-  secretKey: "your-secure-secret-key"  # JWT signing key (keep this secure!)
-  tokenDuration: 24h                   # JWT token validity period
-  issuedBy: "SysManix"                 # JWT issuer field
-  allowedRoles:                        # Available roles in the system
+  secretKey: "your-secure-random-string-here"  # JWT signing key (CHANGE THIS!)
+  tokenDuration: 24h                          # Token validity period
+  issuedBy: "SysManix"                        # Token issuer name
+  allowedRoles:                               # Available roles in the system
     - admin
     - viewer
-  users:                               # User definitions
+  users:                                      # User definitions
     admin:
       username: "admin"
-      password_hash: "$argon2id$v=19$..." # Will be generated after first run
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."  # Hashed password
       roles:
         - admin
     viewer:
       username: "viewer"
-      password_hash: "$argon2id$v=19$..." # Will be generated after first run
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
+        - viewer
+    custom_user:
+      username: "custom_user"
+      password: "plain_password"  # Plain password (will be hashed after restart)
       roles:
         - viewer
 ```
 
-### Setting Up Users
+Important notes:
+- `secretKey` should be a strong random string (at least 32 characters)
+- `tokenDuration` uses Go's duration format (e.g., "24h", "30m", "1h30m")
+- You can provide either `password_hash` or `password` (which will be automatically hashed)
 
-For new installations, you can specify plaintext passwords:
+### Operating System Specific Configuration
 
-```yaml
-auth:
-  users:
-    admin:
-      username: "admin"
-      password: "secure-admin-password"  # Will be hashed after first run
-      roles:
-        - admin
-```
-
-After the first run, SysManix will convert plaintext passwords to secure Argon2id hashes.
-
-### Token Duration
-
-Adjust token lifetime based on your security requirements:
-
-```yaml
-auth:
-  tokenDuration: 8h  # 8 hours
-```
-
-Common values:
-- Development: `24h` (24 hours)
-- Standard security: `8h` (8 hours)
-- High security: `1h` (1 hour)
-
-### Custom Roles
-
-You can create custom roles beyond the built-in `admin` and `viewer`:
-
-```yaml
-auth:
-  allowedRoles:
-    - admin
-    - viewer
-    - service_operator
-    - log_viewer
-  users:
-    operator:
-      username: "operator"
-      password_hash: "$argon2id$v=19$..."
-      roles:
-        - service_operator
-        - log_viewer
-```
-
-## Logging Configuration
-
-```yaml
-logging:
-  level: "info"        # Log level (debug, info, warn, error)
-  directory: "logs"    # Directory for log files
-  maxSize: 10          # Maximum size in MB before rotation
-  maxBackups: 5        # Number of rotated logs to keep
-  maxAge: 30           # Days to keep logs
-  compress: true       # Compress rotated logs
-```
-
-### Log Levels
-
-Available log levels (from most to least verbose):
-- `debug`: Detailed debugging information
-- `info`: General operational information
-- `warn`: Warning conditions
-- `error`: Error conditions that should be addressed
-
-### Log File Management
-
-For high-volume environments, adjust:
-
-```yaml
-logging:
-  maxSize: 50        # 50MB per file before rotation
-  maxBackups: 10     # Keep more backups
-  maxAge: 90         # Keep logs longer (90 days)
-```
-
-### Log Directory
-
-Specify an absolute path for better control:
-
-```yaml
-logging:
-  directory: "/var/log/sysmanix"  # Linux
-  # or
-  directory: "C:\\ProgramData\\SysManix\\logs"  # Windows
-```
-
-## Platform-Specific Configuration
-
-### Windows Configuration
+Settings specific to each supported operating system:
 
 ```yaml
 windows:
-  serviceCommand: "sc"  # Windows service command tool
-  logDirectory: "C:\\ProgramData\\SysManix\\logs"
-  services:
-    protected:          # Services that cannot be modified
-      - wininit
-      - csrss
-      - lsass
-      - spooler
-      - EventLog
-      - TrustedInstaller
-```
+  serviceCommand: "sc"                         # Windows service command
+  logDirectory: "C:\\ProgramData\\SysManix\\logs"  # Log directory
+  services:                                    # Service-specific configurations
+    protected:                                 # List of additional protected services
+      - CustomCriticalService
 
-### Linux Configuration
-
-```yaml
 linux:
-  serviceCommand: "systemctl"  # Systemd control command
-  logDirectory: "/var/log/sysmanix"
-  services:
-    protected:          # Services that cannot be modified
-      - systemd
-      - systemd-journald
-      - dbus
-      - sshd
-      - NetworkManager
+  serviceCommand: "systemctl"                  # Linux service command
+  logDirectory: "/var/log/SysManix"            # Log directory
+  services:                                    # Service-specific configurations
+    protected:                                 # List of additional protected services
+      - critical-custom-service
 ```
 
-## Update Configuration
+### Logging Configuration
+
+Controls the logging behavior:
 
 ```yaml
-updates:
-  checkOnStartup: true    # Check for updates when server starts
-  notifyInLogs: true      # Log update notifications
-  checkInterval: 24h      # How often to check for updates
-  githubTimeout: 10s      # Timeout for GitHub API requests
+logging:
+  level: "info"      # Log level (debug, info, warn, error)
+  directory: "logs"  # Log directory (relative to executable)
+  maxSize: 10        # Max size per log file in MB
+  maxBackups: 5      # Number of old log files to keep
+  maxAge: 30         # Max age of log files in days
+  compress: true     # Compress old log files
 ```
 
-### Disabling Update Checks
+### API Documentation Configuration
 
-For air-gapped environments:
+Controls the Swagger API documentation:
 
 ```yaml
-updates:
-  checkOnStartup: false
-  notifyInLogs: false
+api:
+  enableSwagger: true         # Enable/disable Swagger UI
+  swaggerPath: "/swagger/"    # Path to Swagger UI
+  version: "1.0.0"            # API version
+  title: "SysManix API"       # API title for documentation
+  description: "Cross-platform service management API"  # API description
 ```
 
 ## Advanced Configuration
 
-### Debug Features
+### Protected Services Configuration
 
-For troubleshooting, you can enable debugging features:
-
-```yaml
-debug:
-  profiling: true
-  profiling_endpoint: "/debug/pprof"
-  trace: true
-  memory_profile: true
-```
-
-These features should be disabled in production environments.
-
-### CORS Configuration
-
-Configure Cross-Origin Resource Sharing for browser-based clients:
+Protected services are critical system services that cannot be managed through the API for security reasons. SysManix includes default protected services for each platform, but you can add additional ones:
 
 ```yaml
-server:
-  cors:
-    enabled: true
-    allowed_origins:
-      - "https://admin.example.com"
-    allowed_methods:
-      - "GET"
-      - "POST"
-    allowed_headers:
-      - "Authorization"
-      - "Content-Type"
-    max_age: 86400  # 24 hours
-```
-
-### Rate Limiting
-
-Protect against abuse with rate limiting:
-
-```yaml
-server:
-  rate_limiting:
-    enabled: true
-    requests_per_minute: 60
-    burst: 10
-```
-
-## Configuration Examples
-
-### Minimal Production Configuration
-
-```yaml
-server:
-  host: "0.0.0.0"
-  port: 40200
-
-auth:
-  secretKey: "your-secure-random-string"
-  tokenDuration: 8h
-  users:
-    admin:
-      username: "admin"
-      password_hash: "$argon2id$v=19$..."
-      roles:
-        - admin
-
-logging:
-  level: "info"
-  directory: "/var/log/sysmanix"
-```
-
-### High-Security Configuration
-
-```yaml
-server:
-  host: "localhost"  # Only local access
-  port: 40200
-  readTimeout: "5s"
-  writeTimeout: "5s"
-
-auth:
-  secretKey: "very-long-random-string-at-least-64-characters-for-enhanced-security"
-  tokenDuration: 1h  # Short-lived tokens
-  users:
-    admin:
-      username: "admin"
-      password_hash: "$argon2id$v=19$..."
-      roles:
-        - admin
-
-logging:
-  level: "info"
-  directory: "/var/log/sysmanix"
-  maxBackups: 30
-  maxAge: 90
+windows:
+  services:
+    protected:
+      - wininit
+      - csrss
+      - lsass
+      - YourCriticalService1
+      - YourCriticalService2
 
 linux:
   services:
     protected:
       - systemd
-      - systemd-journald
       - dbus
       - sshd
-      - NetworkManager
-      - firewalld
-      - ufw
+      - your-critical-service1
+      - your-critical-service2
 ```
 
-### Development Configuration
+### Custom Service Permissions
+
+You can define custom permissions for specific services:
+
+```yaml
+windows:
+  services:
+    customPermissions:
+      sqlserver:
+        allowedRoles:
+          - admin
+          - db_admin
+      iis:
+        allowedRoles:
+          - admin
+          - web_admin
+
+linux:
+  services:
+    customPermissions:
+      nginx:
+        allowedRoles:
+          - admin
+          - web_admin
+      postgresql:
+        allowedRoles:
+          - admin
+          - db_admin
+```
+
+### Extended User Roles
+
+Create custom roles for fine-grained permission control:
+
+```yaml
+auth:
+  allowedRoles:
+    - admin       # Full access
+    - viewer      # Read-only access
+    - operator    # Can start/stop services but not view tokens
+    - db_admin    # Can only manage database services
+    - web_admin   # Can only manage web server services
+
+  users:
+    web_user:
+      username: "web_user"
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
+        - web_admin
+
+    db_user:
+      username: "db_user"
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
+        - db_admin
+```
+
+## Environment Variables
+
+SysManix also supports environment variables to override configuration values:
+
+| Environment Variable | Configuration Path | Description |
+|---------------------|-------------------|-------------|
+| `SYSMANIX_SERVER_PORT` | server.port | Server port |
+| `SYSMANIX_SERVER_HOST` | server.host | Server host |
+| `SYSMANIX_AUTH_SECRET_KEY` | auth.secretKey | JWT secret key |
+| `SYSMANIX_LOG_LEVEL` | logging.level | Log level |
+
+Example usage:
+
+```bash
+# Set server port via environment variable
+export SYSMANIX_SERVER_PORT=8080
+./sysmanix
+```
+
+## Configuration Best Practices
+
+### Security Recommendations
+
+1. **Generate a strong secret key**:
+   ```bash
+   # Linux
+   openssl rand -base64 32
+
+   # Windows PowerShell
+   [Convert]::ToBase64String((New-Object byte[] 32) | ForEach-Object { $_ = Get-Random -Minimum 0 -Maximum 256 })
+   ```
+
+2. **Use environment variables for secrets** in production environments
+3. **Restrict access to the configuration file** (chmod 600 on Linux)
+4. **Separate permissions** using custom roles instead of giving everyone admin access
+5. **Change default passwords** immediately after installation
+
+### Performance Tuning
+
+1. **Adjust log levels** based on environment:
+   - Production: `info` or `warn`
+   - Development/Debugging: `debug`
+
+2. **Configure appropriate timeouts**:
+   ```yaml
+   server:
+     readTimeout: "30s"  # Increase for slow networks
+     writeTimeout: "30s" # Increase for operations that take longer
+   ```
+
+3. **Enable log compression** to save disk space:
+   ```yaml
+   logging:
+     compress: true
+   ```
+
+### Development Environment
+
+For development environments, use a more permissive configuration:
+
+```yaml
+server:
+  host: "localhost"
+  port: 8080
+
+auth:
+  tokenDuration: 24h  # Longer tokens for convenience during development
+
+logging:
+  level: "debug"  # More verbose logging
+
+api:
+  enableSwagger: true  # Enable API documentation
+```
+
+### Production Environment
+
+For production environments, focus on security and stability:
+
+```yaml
+server:
+  host: "127.0.0.1"  # Only accessible locally (use with reverse proxy)
+
+auth:
+  tokenDuration: 8h  # Shorter token lifetime
+
+logging:
+  level: "info"
+  maxSize: 50  # Larger log files
+  maxBackups: 10  # Keep more backups
+
+api:
+  enableSwagger: false  # Disable Swagger in production
+```
+
+## Full Configuration Example
+
+Below is a complete configuration example with all available options:
 
 ```yaml
 server:
   host: "localhost"
   port: 40200
+  readTimeout: "15s"
+  writeTimeout: "15s"
+  maxHeaderBytes: 1048576
 
 auth:
-  secretKey: "dev-secret-do-not-use-in-production"
-  tokenDuration: 24h
+  secretKey: "your-secure-random-string-here"
+  tokenDuration: 12h
+  issuedBy: "SysManix"
+  allowedRoles:
+    - admin
+    - viewer
+    - operator
+    - db_admin
   users:
     admin:
       username: "admin"
-      password: "admin"  # Will be hashed after first run
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
       roles:
         - admin
     viewer:
       username: "viewer"
-      password: "viewer"  # Will be hashed after first run
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
       roles:
         - viewer
+    operator:
+      username: "operator"
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
+        - operator
+
+windows:
+  serviceCommand: "sc"
+  logDirectory: "C:\\ProgramData\\SysManix\\logs"
+  services:
+    protected:
+      - wininit
+      - csrss
+      - lsass
+      - CustomCriticalService
+    customPermissions:
+      sqlserver:
+        allowedRoles:
+          - admin
+          - db_admin
+
+linux:
+  serviceCommand: "systemctl"
+  logDirectory: "/var/log/SysManix"
+  services:
+    protected:
+      - systemd
+      - dbus
+      - sshd
+      - custom-critical-service
+    customPermissions:
+      postgresql:
+        allowedRoles:
+          - admin
+          - db_admin
 
 logging:
-  level: "debug"
+  level: "info"
   directory: "logs"
+  maxSize: 10
+  maxBackups: 5
+  maxAge: 30
+  compress: true
 
-debug:
-  profiling: true
-  profiling_endpoint: "/debug/pprof"
+api:
+  enableSwagger: true
+  swaggerPath: "/swagger/"
+  version: "1.0.0"
+  title: "SysManix API"
+  description: "Cross-platform service management API"
 ```
 
-## Configuration Validation
+## Troubleshooting Configuration Issues
 
-SysManix validates your configuration at startup. If there are issues, you'll see errors in the logs.
+If you're experiencing issues with your configuration:
 
-Common validation errors:
-- Missing required fields
-- Invalid values (e.g., invalid duration format)
-- Security issues (e.g., weak default passwords in production mode)
+1. **Validate YAML syntax**
+   ```bash
+   yamllint config.yaml
+   ```
 
-## Environment Variable Overrides
+2. **Check permissions**
+   ```bash
+   # Linux
+   ls -la config.yaml
 
-You can override configuration settings with environment variables:
+   # Windows
+   icacls "C:\path\to\config.yaml"
+   ```
 
-```bash
-# Linux/macOS
-export SYSMANIX_SERVER_PORT=8080
-export SYSMANIX_AUTH_TOKEN_DURATION=12h
+3. **Look for parsing errors** in the logs right after startup
 
-# Windows PowerShell
-$env:SYSMANIX_SERVER_PORT = 8080
-$env:SYSMANIX_AUTH_TOKEN_DURATION = "12h"
-```
+4. **Try starting with a minimal configuration** to identify problematic settings
 
-## Reloading Configuration
-
-After changing the configuration file, restart SysManix to apply changes:
-
-### Windows
-```powershell
-Restart-Service -Name SysManix
-```
-
-### Linux
-```bash
-sudo systemctl restart sysmanix
-```
-
-Some settings (if implemented) may be reloadable without a restart:
-
-```bash
-# Send SIGHUP to reload configuration (Linux)
-sudo kill -HUP $(pidof sysmanix)
-```
-
-## Troubleshooting
-
-### Invalid Configuration
-
-If SysManix fails to start due to configuration issues:
-
-1. Check log files for specific error messages
-2. Verify YAML syntax (no tabs, proper indentation)
-3. Validate file permissions
-4. Try the minimal configuration example above
-
-### Password Issues
-
-If you're unable to log in:
-
-1. Ensure the username in the request matches the configuration exactly (case-sensitive)
-2. For fresh installs, use plaintext passwords and let SysManix hash them
-3. To reset a password, you can temporarily replace a password_hash with a plaintext password field
-
-## Further Reading
-
-- [Authentication Guide](./AUTHENTICATION.md): More details on authentication options
-- [Security Guide](./SECURITY.md): Security best practices
-- [Troubleshooting Guide](./TROUBLESHOOTING.md): Solving common problems
-- [Advanced Configuration](./ADVANCED_CONFIG.md): Advanced configuration options
+For more help, see the [Troubleshooting Guide](./TROUBLESHOOTING.md).

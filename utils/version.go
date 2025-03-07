@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -14,6 +15,16 @@ const (
 
 	// githubAPI is the endpoint for checking latest releases
 	githubAPI = "https://api.github.com/repos/toxic-development/sysmanix/releases/latest"
+
+	// Version information
+	AppName    = "SysManix"
+	AppVersion = "0.1.0"
+	BuildDate  = "2023-06-01"
+)
+
+var (
+	// StartTime records when the application was started
+	StartTime = time.Now()
 )
 
 type GitHubRelease struct {
@@ -21,6 +32,42 @@ type GitHubRelease struct {
 	Name        string    `json:"name"`
 	PublishedAt time.Time `json:"published_at"`
 	Body        string    `json:"body"`
+}
+
+// VersionInfo contains version information about the application
+type VersionInfo struct {
+	Name      string    `json:"name"`
+	Version   string    `json:"version"`
+	BuildDate string    `json:"buildDate"`
+	GoVersion string    `json:"goVersion"`
+	OS        string    `json:"os"`
+	Arch      string    `json:"arch"`
+	StartTime time.Time `json:"startTime"`
+	Uptime    string    `json:"uptime"`
+}
+
+// GetVersionInfo returns the current version information
+func GetVersionInfo() VersionInfo {
+	return VersionInfo{
+		Name:      AppName,
+		Version:   AppVersion,
+		BuildDate: BuildDate,
+		GoVersion: runtime.Version(),
+		OS:        runtime.GOOS,
+		Arch:      runtime.GOARCH,
+		StartTime: StartTime,
+		Uptime:    GetUptime(),
+	}
+}
+
+// GetUptime returns the application uptime as a human-readable string
+func GetUptime() string {
+	uptime := time.Since(StartTime)
+	return fmt.Sprintf("%d days, %d hours, %d minutes, %d seconds",
+		int(uptime.Hours())/24,
+		int(uptime.Hours())%24,
+		int(uptime.Minutes())%60,
+		int(uptime.Seconds())%60)
 }
 
 // CheckVersion compares current version with latest GitHub release

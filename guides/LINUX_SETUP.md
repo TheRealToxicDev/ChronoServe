@@ -1,550 +1,377 @@
 # SysManix Linux Setup Guide
 
-This guide provides detailed instructions for setting up SysManix on Linux systems for production use.
+This guide provides detailed instructions for setting up SysManix on Linux systems, focusing on Linux-specific considerations and optimizations.
 
-## Prerequisites
+## System Requirements
 
-- A Linux distribution with systemd (Ubuntu 20.04+, CentOS 8+, Debian 11+, etc.)
-- Root or sudo access
-- Basic familiarity with Linux command line
-- SysManix installed (see [Installation Guide](./INSTALLATION.md))
+- A modern Linux distribution with systemd (Ubuntu 20.04+, Debian 11+, CentOS/RHEL 8+, etc.)
+- Root or sudo privileges
+- systemd as the init system
+- journalctl access for log viewing
 
-## Installation Review
+## Installation Options
 
-If you haven't installed SysManix yet, follow the [Installation Guide](./INSTALLATION.md). In summary:
+### Option 1: Standalone Binary
 
-### Package Manager Installation
+1. **Download the latest release**:
+   ```bash
+   mkdir -p /opt/sysmanix
+   cd /opt/sysmanix
+   wget https://github.com/toxic-development/sysmanix/releases/latest/download/SysManix_linux_amd64 -O sysmanix
+   chmod +x sysmanix
+   ```
 
-**Ubuntu/Debian:**
-```bash
-# Add the SysManix repository
-curl -fsSL https://download.sysmanix.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/sysmanix-archive-keyring.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/sysmanix-archive-keyring.gpg] https://download.sysmanix.io/apt stable main" | sudo tee /etc/apt/sources.list.d/sysmanix.list
+2. **Generate initial configuration**:
+   ```bash
+   sudo ./sysmanix
+   ```
 
-# Update package lists and install SysManix
-sudo apt update
-sudo apt install sysmanix
-```
+3. **Edit the configuration**:
+   ```bash
+   sudo nano config.yaml
+   # Update settings according to your needs
+   ```
 
-**RHEL/CentOS/Fedora:**
-```bash
-# Add the SysManix repository
-sudo tee /etc/yum.repos.d/sysmanix.repo << EOF
-[sysmanix]
-name=SysManix Repository
-baseurl=https://download.sysmanix.io/rpm
-enabled=1
-gpgcheck=1
-gpgkey=https://download.sysmanix.io/gpg
-EOF
+### Option 2: Systemd Service (Recommended for Production)
 
-# Install SysManix
-sudo yum install sysmanix
-```
+1. **Create a dedicated system user** (optional but recommended):
+   ```bash
+   sudo useradd -r -s /bin/false sysmanix
+   ```
 
-## Linux System Preparation
+2. **Set up directory structure**:
+   ```bash
+   sudo mkdir -p /opt/sysmanix
+   sudo mkdir -p /etc/sysmanix
+   sudo mkdir -p /var/log/sysmanix
 
-### Creating a Dedicated User
+   # If you created a dedicated user
+   sudo chown sysmanix:sysmanix /var/log/sysmanix
+   ```
 
-For enhanced security, create a dedicated user for running SysManix:
+3. **Install the binary**:
+   ```bash
+   sudo wget https://github.com/toxic-development/sysmanix/releases/latest/download/SysManix_linux_amd64 -O /opt/sysmanix/sysmanix
+   sudo chmod +x /opt/sysmanix/sysmanix
+   ```
 
-```bash
-# Create sysmanix user and group
-sudo useradd -r -s /bin/false -m -d /var/lib/sysmanix sysmanix
+4. **Create a systemd service file**:
+   ```bash
+   sudo nano /etc/systemd/system/sysmanix.service
+   ```
 
-# Create necessary directories
-sudo mkdir -p /etc/sysmanix /var/log/sysmanix
+   Add the following content:
+   ```ini
+   [Unit]
+   Description=SysManix Service Manager
+   After=network.target
 
-# Set permissions
-sudo chown -R sysmanix:sysmanix /etc/sysmanix /var/log/sysmanix
-sudo chmod 750 /etc/sysmanix /var/log/sysmanix
-```
+   [Service]
+   Type=simple
+   User=root  # Must run as root to control services
+   WorkingDirectory=/opt/sysmanix
+   ExecStart=/opt/sysmanix/sysmanix -config /etc/sysmanix/config.yaml
+   Restart=on-failure
+   RestartSec=5s
+   SyslogIdentifier=sysmanix
 
-### Directory Structure
+   # Hardening options (optional)
+   NoNewPrivileges=true
+   ProtectSystem=full
+   ProtectHome=true
+   PrivateTmp=true
 
-The standard directory structure for SysManix on Linux:
+   [Install]
+   WantedBy=multi-user.target
+   ```
 
-```
-/etc/sysmanix/          # Configuration files
-  └── config.yaml       # Main configuration file
-/usr/bin/sysmanix       # Binary executable
-/var/lib/sysmanix/      # Application data
-/var/log/sysmanix/      # Log files
-  ├── app.log           # Application logs
-  ├── auth.log          # Authentication logs
-  └── access.log        # API access logs
-```
+5. **Generate and move the configuration**:
+   ```bash
+   sudo /opt/sysmanix/sysmanix -config /opt/sysmanix/config.yaml
+   sudo cp /opt/sysmanix/config.yaml /etc/sysmanix/
+   sudo nano /etc/sysmanix/config.yaml  # Edit as needed
+   ```
 
-## Configuration Setup
+6. **Enable and start the service**:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable sysmanix
+   sudo systemctl start sysmanix
+   ```
 
-Create and edit the configuration file:
+## Linux-Specific Configuration
 
-```bash
-# Create default configuration
-sudo mkdir -p /etc/sysmanix
-sudo touch /etc/sysmanix/config.yaml
-sudo chown -R sysmanix:sysmanix /etc/sysmanix
-sudo chmod 750 /etc/sysmanix
-sudo chmod 640 /etc/sysmanix/config.yaml
-
-# Edit configuration
-sudo nano /etc/sysmanix/config.yaml
-```
-
-Add the following configuration, adjusted for your environment:
+Edit the `config.yaml` file with Linux-specific settings:
 
 ```yaml
-server:
-  host: "0.0.0.0"  # Listen on all interfaces
-  port: 40200
-  readTimeout: "15s"
-  writeTimeout: "15s"
-  maxHeaderBytes: 1048576
-
-auth:
-  secretKey: "generate-a-secure-random-string"  # Change this!
-  tokenDuration: 8h
-  issuedBy: "SysManix"
-  allowedRoles:
-    - admin
-    - viewer
-  users:
-    admin:
-      username: "admin"
-      password: "your-secure-admin-password"  # Will be hashed after first run
-      roles:
-        - admin
-    viewer:
-      username: "viewer"
-      password: "your-secure-viewer-password"  # Will be hashed after first run
-      roles:
-        - viewer
-
-logging:
-  level: "info"
-  directory: "/var/log/sysmanix"
-  maxSize: 10
-  maxBackups: 5
-  maxAge: 30
-  compress: true
-
 linux:
-  serviceCommand: "systemctl"
+  serviceCommand: "systemctl"  # Use systemctl for systemd
   logDirectory: "/var/log/sysmanix"
   services:
     protected:
+      # Default protected services (do not modify unless you know what you're doing)
       - systemd
       - systemd-journald
       - dbus
       - sshd
-      - NetworkManager
-      - firewalld
-      - ufw
+      # Additional custom protected services
+      - your-critical-service
 ```
-
-### Generate a Secure Secret Key
-
-```bash
-# Generate a secure random string for JWT signing
-SECRET=$(openssl rand -base64 32)
-echo "Generated secret key: $SECRET"
-```
-
-Update the `secretKey` field in your configuration with this value.
-
-## Setting Up Systemd Integration
-
-For production use, you should run SysManix as a systemd service. See the [Systemd Setup Guide](./SYSTEMD_SETUP.md) for detailed instructions. In summary:
-
-1. Create a systemd service file at `/etc/systemd/system/sysmanix.service`
-2. Configure it with appropriate security settings
-3. Start and enable the service
 
 ## Firewall Configuration
 
-### UFW (Uncomplicated Firewall)
+If you're using a firewall (which is recommended), you'll need to open the API port:
 
-If using UFW (default on Ubuntu/Debian):
-
+### UFW (Ubuntu/Debian)
 ```bash
-# Allow connections to SysManix API from internal networks only
-sudo ufw allow from 10.0.0.0/8 to any port 40200 proto tcp
-sudo ufw allow from 172.16.0.0/12 to any port 40200 proto tcp
-sudo ufw allow from 192.168.0.0/16 to any port 40200 proto tcp
+# Open the default port
+sudo ufw allow 40200/tcp
+
+# Alternatively, limit access to specific IP addresses
+sudo ufw allow from 192.168.1.0/24 to any port 40200 proto tcp
 ```
 
-### firewalld (CentOS/RHEL/Fedora)
-
-If using firewalld:
-
+### Firewalld (CentOS/RHEL/Fedora)
 ```bash
-# Allow connections to SysManix API from internal networks
-sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.0.0.0/8" port protocol="tcp" port="40200" accept'
-sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.16.0.0/12" port protocol="tcp" port="40200" accept'
-sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.0.0/16" port protocol="tcp" port="40200" accept'
+# Open the default port
+sudo firewall-cmd --permanent --add-port=40200/tcp
 sudo firewall-cmd --reload
-```
 
-### iptables
-
-If directly using iptables:
-
-```bash
-# Allow connections to SysManix API from internal networks
-sudo iptables -A INPUT -p tcp -s 10.0.0.0/8 --dport 40200 -j ACCEPT
-sudo iptables -A INPUT -p tcp -s 172.16.0.0/12 --dport 40200 -j ACCEPT
-sudo iptables -A INPUT -p tcp -s 192.168.0.0/16 --dport 40200 -j ACCEPT
-
-# Optionally save iptables rules for persistence
-sudo netfilter-persistent save
+# Alternatively, create a service definition
+sudo firewall-cmd --permanent --new-service=sysmanix
+sudo firewall-cmd --permanent --service=sysmanix --add-port=40200/tcp
+sudo firewall-cmd --permanent --add-service=sysmanix
+sudo firewall-cmd --reload
 ```
 
 ## SELinux Configuration
 
-If SELinux is enabled on your system (common in RHEL/CentOS), you'll need to configure it to work with SysManix:
+If SELinux is enabled on your system (common on CentOS/RHEL), you'll need to configure it to allow SysManix to function properly:
 
 ```bash
-# Allow SysManix to bind to its network port
+# Check SELinux status
+getenforce
+
+# If Enforcing, create a policy for SysManix
 sudo semanage port -a -t http_port_t -p tcp 40200
-
-# Allow SysManix to access systemd services
-sudo setsebool -P httpd_manage_sys_content 1
-
-# Create a custom SELinux policy module for SysManix
-sudo ausearch -c 'sysmanix' --raw | audit2allow -M sysmanix_selinux
-sudo semodule -i sysmanix_selinux.pp
 ```
 
-## System Limits Configuration
-
-Optimize system limits for SysManix in `/etc/security/limits.conf`:
+You may also need to set appropriate contexts for SysManix files:
 
 ```bash
-# Add the following lines to /etc/security/limits.conf
-sudo tee -a /etc/security/limits.conf << EOF
-sysmanix soft nofile 65536
-sysmanix hard nofile 65536
-sysmanix soft nproc 4096
-sysmanix hard nproc 4096
-EOF
+# Set context for binary
+sudo chcon -t bin_t /opt/sysmanix/sysmanix
+
+# Set context for configuration directory
+sudo chcon -R -t etc_t /etc/sysmanix
 ```
 
-## Monitoring Integration
+## Service Management Specifics
 
-### Setting up Prometheus Monitoring
+### Linux Service Names
 
-To monitor SysManix with Prometheus:
-
-1. Install node_exporter on the server
-2. Configure Prometheus to scrape node_exporter metrics
-3. Create a script to expose SysManix metrics via the health endpoint
+When managing Linux services via SysManix, use the exact service name as shown in systemd:
 
 ```bash
-# Example script to expose SysManix metrics to Prometheus
-sudo tee /usr/local/bin/sysmanix-metrics.sh << 'EOF'
-#!/bin/bash
-set -e
+# List all services
+systemctl list-units --type=service --all
 
-# Configuration
-API_URL="http://localhost:40200/health"
-OUTPUT_FILE="/var/lib/node_exporter/sysmanix.prom"
-
-# Get SysManix health data as JSON
-HEALTH_DATA=$(curl -s ${API_URL})
-
-# Extract metrics and format for Prometheus
-echo "# HELP sysmanix_uptime_seconds SysManix uptime in seconds" > ${OUTPUT_FILE}
-echo "# TYPE sysmanix_uptime_seconds gauge" >> ${OUTPUT_FILE}
-UPTIME_SEC=$(echo ${HEALTH_DATA} | jq -r '.data.uptime_seconds')
-echo "sysmanix_uptime_seconds ${UPTIME_SEC}" >> ${OUTPUT_FILE}
-
-echo "# HELP sysmanix_memory_usage_bytes Memory usage in bytes" >> ${OUTPUT_FILE}
-echo "# TYPE sysmanix_memory_usage_bytes gauge" >> ${OUTPUT_FILE}
-MEMORY_ALLOC=$(echo ${HEALTH_DATA} | jq -r '.data.memory.alloc')
-echo "sysmanix_memory_usage_bytes ${MEMORY_ALLOC}" >> ${OUTPUT_FILE}
-
-echo "# HELP sysmanix_gc_count Number of garbage collections" >> ${OUTPUT_FILE}
-echo "# TYPE sysmanix_gc_count counter" >> ${OUTPUT_FILE}
-GC_COUNT=$(echo ${HEALTH_DATA} | jq -r '.data.memory.numGC')
-echo "sysmanix_gc_count ${GC_COUNT}" >> ${OUTPUT_FILE}
-EOF
-
-# Make script executable
-sudo chmod +x /usr/local/bin/sysmanix-metrics.sh
-
-# Create cron job to run the script every minute
-sudo tee /etc/cron.d/sysmanix-metrics << EOF
-* * * * * root /usr/local/bin/sysmanix-metrics.sh > /dev/null 2>&1
-EOF
+# Example service names
+# - nginx.service
+# - postgresql.service
+# - apache2.service
 ```
 
-## Log Rotation
+Note that SysManix will automatically append `.service` if it's not included in your request.
 
-Configure logrotate for SysManix logs:
+### Service Logs Retrieval
 
-```bash
-# Create logrotate configuration
-sudo tee /etc/logrotate.d/sysmanix << EOF
-/var/log/sysmanix/*.log {
-    daily
-    missingok
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 0640 sysmanix sysmanix
-    sharedscripts
-    postrotate
-        systemctl kill -s HUP sysmanix.service
-    endscript
-}
-EOF
+On Linux, SysManix retrieves logs using `journalctl`. By default, it:
+- Retrieves logs for the specified unit
+- Limits log lines to the requested number
+- Parses the journal format into structured log entries
+
+## Configuring HTTPS with Nginx Reverse Proxy
+
+For production environments, you should secure SysManix with HTTPS using Nginx:
+
+1. **Install Nginx**:
+   ```bash
+   sudo apt install nginx   # Debian/Ubuntu
+   # or
+   sudo yum install nginx   # CentOS/RHEL
+   ```
+
+2. **Create Nginx configuration**:
+   ```bash
+   sudo nano /etc/nginx/sites-available/sysmanix
+   ```
+
+   Add this configuration:
+   ```nginx
+   server {
+       listen 443 ssl;
+       server_name sysmanix.example.com;
+
+       ssl_certificate /etc/nginx/ssl/sysmanix.crt;
+       ssl_certificate_key /etc/nginx/ssl/sysmanix.key;
+       ssl_protocols TLSv1.2 TLSv1.3;
+       ssl_prefer_server_ciphers on;
+
+       location / {
+           proxy_pass http://localhost:40200;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+
+   # Redirect HTTP to HTTPS
+   server {
+       listen 80;
+       server_name sysmanix.example.com;
+       return 301 https://$server_name$request_uri;
+   }
+   ```
+
+3. **Generate SSL certificate** (or use Let's Encrypt):
+   ```bash
+   sudo mkdir -p /etc/nginx/ssl
+   sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+     -keyout /etc/nginx/ssl/sysmanix.key \
+     -out /etc/nginx/ssl/sysmanix.crt
+   ```
+
+4. **Enable and restart Nginx**:
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/sysmanix /etc/nginx/sites-enabled/
+   sudo systemctl restart nginx
+   ```
+
+## Advanced Linux Configuration
+
+### Limiting Resource Usage
+
+Use systemd resource controls in the service file:
+
+```ini
+[Service]
+# Add these lines to your existing service file
+CPUQuota=50%
+MemoryLimit=256M
+TasksMax=100
 ```
 
-## Automatic Updates
+### Journal Storage Configuration
 
-Set up automatic security updates for the system:
-
-### Ubuntu/Debian
+Optimize journald configuration to manage SysManix logs better:
 
 ```bash
-# Install unattended-upgrades
-sudo apt install unattended-upgrades apt-listchanges
-
-# Configure automatic updates
-sudo tee /etc/apt/apt.conf.d/50unattended-upgrades << EOF
-Unattended-Upgrade::Allowed-Origins {
-    "${distro_id}:${distro_codename}-security";
-};
-Unattended-Upgrade::Package-Blacklist {
-};
-Unattended-Upgrade::Automatic-Reboot "false";
-EOF
-
-# Enable automatic updates
-sudo tee /etc/apt/apt.conf.d/20auto-upgrades << EOF
-APT::Periodic::Update-Package-Lists "1";
-APT::Periodic::Unattended-Upgrade "1";
-EOF
+sudo nano /etc/systemd/journald.conf
 ```
 
-### CentOS/RHEL
+Common settings to adjust:
+```
+SystemMaxUse=1G         # Maximum disk space used by journals
+MaxRetentionSec=2week   # Maximum retention time
+```
+
+Then restart journald:
+```bash
+sudo systemctl restart systemd-journald
+```
+
+### Monitoring Integration
+
+For monitoring SysManix on Linux, you can use standard tools:
+
+#### Prometheus Monitoring
+
+1. Create a node_exporter systemd service:
+   ```bash
+   sudo nano /etc/systemd/system/node-exporter.service
+   ```
+
+2. Add configuration:
+   ```ini
+   [Unit]
+   Description=Node Exporter
+   After=network.target
+
+   [Service]
+   User=node_exporter
+   ExecStart=/usr/local/bin/node_exporter --collector.systemd
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. Configure Prometheus to scrape SysManix metrics (if SysManix exposes them).
+
+## Troubleshooting Linux-Specific Issues
+
+### Common Issues and Solutions
+
+1. **"Permission denied" when accessing services**:
+   - Ensure SysManix is running as root
+   - Check if SELinux is blocking access with: `sudo ausearch -m avc -ts recent`
+
+2. **Service control fails**:
+   - Verify systemd service exists: `systemctl list-unit-files | grep your-service`
+   - Check for proper permissions: `systemctl status your-service`
+
+3. **Logs not appearing**:
+   - Check if the user can access journald logs: `sudo usermod -a -G systemd-journal your-user`
+   - Verify journal persistence is enabled: `grep Storage /etc/systemd/journald.conf`
+
+### Systemd Journal Access
+
+To manually view logs for debugging:
 
 ```bash
-# Install dnf-automatic
-sudo yum install dnf-automatic
+# View SysManix logs
+sudo journalctl -u sysmanix
 
-# Configure automatic updates
-sudo sed -i 's/apply_updates = no/apply_updates = yes/' /etc/dnf/automatic.conf
+# Follow logs in real time
+sudo journalctl -u sysmanix -f
 
-# Enable and start the service
-sudo systemctl enable --now dnf-automatic.timer
+# View logs for a specific service
+sudo journalctl -u nginx -n 100
 ```
 
 ## Performance Tuning
 
-### Optimizing for High Traffic
+For optimal performance on Linux:
 
-For servers with many connections, optimize kernel parameters:
+1. **Adjust open file limits**:
+   ```bash
+   # Add to /etc/security/limits.conf
+   sysmanix soft nofile 65536
+   sysmanix hard nofile 65536
+   ```
 
-```bash
-# Add the following to /etc/sysctl.conf
-sudo tee -a /etc/sysctl.conf << EOF
-# Increase TCP max connections
-net.core.somaxconn = 65535
-net.ipv4.tcp_max_syn_backlog = 65535
+2. **Enable systemd service optimization**:
+   ```ini
+   # Add to the [Service] section in sysmanix.service
+   LimitNOFILE=65536
+   Nice=-5
+   IOSchedulingClass=2
+   IOSchedulingPriority=0
+   ```
 
-# Increase file descriptor limits
-fs.file-max = 2097152
-
-# Optimize TCP keepalive parameters
-net.ipv4.tcp_keepalive_time = 600
-net.ipv4.tcp_keepalive_intvl = 60
-net.ipv4.tcp_keepalive_probes = 5
-EOF
-
-# Apply changes
-sudo sysctl -p
-```
-
-## Backup and Recovery
-
-Set up automated backups of SysManix configuration:
-
-```bash
-# Create backup script
-sudo tee /usr/local/bin/backup-sysmanix.sh << 'EOF'
-#!/bin/bash
-BACKUP_DIR="/var/backups/sysmanix"
-DATE=$(date +%Y%m%d-%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/sysmanix-config-${DATE}.tar.gz"
-
-# Create backup directory if it doesn't exist
-mkdir -p ${BACKUP_DIR}
-
-# Create backup
-tar -czf ${BACKUP_FILE} -C /etc sysmanix
-
-# Rotate backups (keep last 7 days)
-find ${BACKUP_DIR} -type f -name "sysmanix-config-*.tar.gz" -mtime +7 -delete
-EOF
-
-# Make script executable
-sudo chmod +x /usr/local/bin/backup-sysmanix.sh
-
-# Create daily cron job
-sudo tee /etc/cron.daily/sysmanix-backup << EOF
-#!/bin/bash
-/usr/local/bin/backup-sysmanix.sh
-EOF
-
-# Make cron job executable
-sudo chmod +x /etc/cron.daily/sysmanix-backup
-```
-
-## Security Hardening
-
-Additional security measures for your Linux system:
-
-```bash
-# Disable root SSH login
-sudo sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
-sudo systemctl restart sshd
-
-# Restrict SSH to strong encryption algorithms
-sudo tee -a /etc/ssh/sshd_config << EOF
-Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
-MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
-KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
-EOF
-sudo systemctl restart sshd
-
-# Enable process accounting
-sudo apt install acct || sudo yum install psacct
-sudo systemctl enable --now acct.service || sudo systemctl enable --now psacct.service
-```
-
-## Troubleshooting Linux-Specific Issues
-
-### Service Management Issues
-
-If SysManix has trouble managing systemd services:
-
-1. Check that the sysmanix user has appropriate permissions:
-
-```bash
-# Create a sudoers file for SysManix
-sudo tee /etc/sudoers.d/sysmanix << EOF
-sysmanix ALL=(ALL) NOPASSWD: /bin/systemctl start *, /bin/systemctl stop *, /bin/systemctl status *, /bin/systemctl is-active *, /usr/bin/journalctl *
-EOF
-
-# Set proper permissions
-sudo chmod 440 /etc/sudoers.d/sysmanix
-```
-
-2. Update the systemd service file to use sudo for service commands:
-
-```bash
-sudo systemctl edit sysmanix.service
-```
-
-Add the following:
-
-```ini
-[Service]
-ExecStart=
-ExecStart=/usr/bin/sysmanix serve --use-sudo
-```
-
-Then reload and restart:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart sysmanix
-```
-
-### Journalctl Access Issues
-
-If SysManix can't access journalctl logs:
-
-```bash
-# Add sysmanix user to systemd-journal group
-sudo usermod -a -G systemd-journal sysmanix
-
-# Give the systemd-journal group permission to read journal files
-sudo chmod -R g+r /var/log/journal
-```
-
-## System Maintenance Procedures
-
-### Rolling Restarts
-
-For updating SysManix with minimal downtime in clustered environments:
-
-```bash
-# Script for rolling restart (/usr/local/bin/sysmanix-rolling-restart.sh)
-#!/bin/bash
-# This script performs a rolling restart of SysManix instances
-
-# Load balancer hostnames - replace with your actual load balancer hostnames
-LOAD_BALANCERS=("lb1.example.com" "lb2.example.com")
-
-# SysManix server hostnames - replace with your actual server hostnames
-SERVERS=("sysmanix1.example.com" "sysmanix2.example.com" "sysmanix3.example.com")
-
-for SERVER in "${SERVERS[@]}"; do
-  echo "Processing server: $SERVER"
-
-  # Remove from load balancer
-  for LB in "${LOAD_BALANCERS[@]}"; do
-    echo "Removing $SERVER from $LB"
-    ssh $LB "sudo lb-disable-backend $SERVER"
-  done
-
-  # Wait for connections to drain
-  echo "Waiting for connections to drain (30s)..."
-  sleep 30
-
-  # Update and restart SysManix
-  echo "Updating and restarting SysManix on $SERVER"
-  ssh $SERVER "sudo systemctl restart sysmanix"
-
-  # Wait for service to be fully up
-  echo "Waiting for service to start (10s)..."
-  sleep 10
-
-  # Verify service is healthy
-  HEALTH=$(ssh $SERVER "curl -s http://localhost:40200/health | jq -r '.data.status'")
-  if [ "$HEALTH" != "healthy" ]; then
-    echo "ERROR: Service on $SERVER is not healthy!"
-    exit 1
-  fi
-
-  # Add back to load balancer
-  for LB in "${LOAD_BALANCERS[@]}"; do
-    echo "Adding $SERVER back to $LB"
-    ssh $LB "sudo lb-enable-backend $SERVER"
-  done
-
-  echo "Server $SERVER successfully updated"
-  echo "Waiting before proceeding to next server (10s)..."
-  sleep 10
-done
-
-echo "All servers updated successfully"
-```
-
-## Additional Resources
-
-- [Linux Hardening Guide](https://github.com/trimstray/the-practical-linux-hardening-guide)
-- [Systemd Documentation](https://systemd.io/)
-- [Linux Performance Tuning Guide](https://www.kernel.org/doc/Documentation/sysctl/vm.txt)
+3. **Configure system-wide optimizations**:
+   ```bash
+   # Improve network performance in /etc/sysctl.conf
+   net.ipv4.tcp_fin_timeout = 30
+   net.core.somaxconn = 1024
+   ```
 
 ## Next Steps
 
-Once you have set up SysManix on your Linux system:
+After completing the Linux setup:
 
-1. Set up [NGINX as a reverse proxy](./NGINX_SETUP.md) for TLS termination
-2. Configure [monitoring and alerts](./MONITORING.md) for proactive management
-3. Implement [backup and disaster recovery](./DISASTER_RECOVERY.md) procedures
-4. Review the [Security Guide](./SECURITY.md) for additional security hardening steps
+- [Secure your installation](./SECURITY.md)
+- [Configure authentication](./AUTHENTICATION.md)
+- [Create systemd service files for backup and monitoring](./SYSTEMD_SETUP.md)
+- [Troubleshoot common issues](./TROUBLESHOOTING.md)

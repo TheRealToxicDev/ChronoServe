@@ -1,125 +1,152 @@
-<h2 align='center'>
-  <img src="https://elixir.makesmehorny.wtf/users/510065483693817867/xgP3CBBp.png" />
-  <br> 
-</h2>
+# SysManix
 
-A secure, cross-platform service management API that provides controlled access to system services through a RESTful interface.
+SysManix is a secure, cross-platform service management API that provides controlled access to system services through a RESTful interface. It bridges the gap between system administration and application management by offering a standardized way to interact with system services across different operating systems.
 
-## Features
+<div align="center">
+  <img src="https://user-images.githubusercontent.com/1234567/example.png" alt="SysManix Logo" width="300" />
+  <h3>Cross-Platform Service Management API</h3>
+  <p>Secure, efficient, and consistent system service management across Windows and Linux platforms.</p>
+</div>
 
-- 🔐 JWT-based authentication with Argon2id password hashing
-- 🖥️ Cross-platform support (Windows and Linux)
-- 📝 Detailed logging with rotation and compression
-- ⚙️ YAML-based configuration system
-- 🚦 Health monitoring with detailed metrics
-- 🔄 Graceful shutdown handling
-- 🛡️ Security-first design with RBAC
-- 🔒 Protected critical system services
-- ⏱️ Non-blocking service management with timeouts
+<div align="center">
 
-## Quick Links
+![License](https://img.shields.io/github/license/toxic-development/sysmanix)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Go Version](https://img.shields.io/badge/go-1.23.1-00ADD8)
 
-- [Getting Started](./guides/GETTING_STARTED.md)
-- [Full Documentation](./guides/DOCUMENTATION.md)
-- [API Reference](./guides/API_REFERENCE.md)
-- [Security](./SECURITY.md)
-- [Contributing](./CONTRIBUTING.md)
-- [Troubleshooting](./guides/TROUBLESHOOTING.md)
+</div>
 
-## API Overview
+## Overview
 
-### Public Endpoints
-- `GET /health` - Server health check
-- `POST /auth/login` - Authentication endpoint
+SysManix provides a unified RESTful API for managing system services across different operating systems. It bridges the gap between system administration and application management with a secure, standardized interface.
 
-### Protected Endpoints
-- `GET /services` - List all services
-- `GET /services/status/{name}` - Get service status
-- `POST /services/start/{name}` - Start a service (admin only)
-- `POST /services/stop/{name}` - Stop a service (admin only)
-- `GET /services/logs/{name}` - View service logs
+### Key Features
+
+- **Cross-Platform**: Works seamlessly on both Windows and Linux
+- **Secure Authentication**: JWT-based auth with role-based access control
+- **Protected Services**: Built-in safeguards for critical system services
+- **RESTful API**: Clean, consistent endpoints for service management
+- **Comprehensive Logs**: Detailed logging of service operations
+- **Swagger Documentation**: Interactive API documentation included
 
 ## Quick Start
 
+### Installation
+
+#### Windows
 ```powershell
-# Install SysManix
+# Download the latest release
 Invoke-WebRequest -Uri "https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_windows_amd64.exe" -OutFile "SysManix.exe"
 
-# First run (creates config)
-.\SysManix.exe
-
-# Update config.yaml with your credentials
-notepad config.yaml
-
-# Start the server
+# Run the executable
 .\SysManix.exe
 ```
 
-### Authentication Example
+#### Linux
+```bash
+# Download the latest release
+wget https://github.com/toxic-development/SysManix/releases/latest/download/SysManix_linux_amd64 -O sysmanix
 
-```powershell
-# Login and get token
-$body = @{
-    username = "admin"
-    password = "your-password"
-} | ConvertTo-Json
+# Make it executable
+chmod +x sysmanix
 
-$response = Invoke-RestMethod -Uri "http://localhost:40200/auth/login" `
-    -Method Post `
-    -ContentType "application/json" `
-    -Body $body
-
-$token = $response.data.token
-
-# Use token to list services
-$headers = @{
-    Authorization = "Bearer $token"
-}
-
-Invoke-RestMethod -Uri "http://localhost:40200/services" -Headers $headers
+# Run the application
+./sysmanix
 ```
 
-## Common Windows Services
+### First Steps
 
-```powershell
-# View Windows Update service logs
-Invoke-RestMethod -Uri "http://localhost:40200/services/logs/wuauserv" -Headers $headers
+1. Access the API at `http://localhost:40200`
+2. Get an authentication token:
+   ```bash
+   curl -X POST http://localhost:40200/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"admin","password":"change-me"}'
+   ```
+3. Use the token for subsequent requests:
+   ```bash
+   curl -X GET http://localhost:40200/services \
+     -H "Authorization: Bearer your-token-here"
+   ```
 
-# Check Event Log service status
-Invoke-RestMethod -Uri "http://localhost:40200/services/status/EventLog" -Headers $headers
-```
+## Getting Started
 
-## Security Features
+To get started with SysManix, check out the [Getting Started Guide](./guides/GETTING_STARTED.md).
 
-- Argon2id password hashing
-- Role-based access control
-- Automatic plain-text password removal
-- Secure configuration handling
-- Detailed security logging
-- Protected system-critical services
-- Proper permission error handling
+## Documentation
+
+For detailed usage instructions and examples, see the guides in the [guides](./guides) directory:
+
+- [Introduction](./guides/INTRODUCTION.md): Overview and concept explanation
+- [Installation Guide](./guides/INSTALLATION.md): Detailed installation instructions
+- [Quick Start Guide](./guides/QUICKSTART.md): Get up and running quickly
+- [Configuration Guide](./guides/CONFIGURATION.md): Configuration options and examples
+- [Authentication Guide](./guides/AUTHENTICATION.md): Authentication system explained
+- [Service Management Guide](./guides/SERVICE_MANAGEMENT.md): Managing services with SysManix
+- [API Reference](./guides/API_REFERENCE.md): Detailed API documentation
+
+## Platform-Specific Guides
+
+- [Windows Setup](./guides/WINDOWS_SETUP.md): Windows-specific configuration
+- [Linux Setup](./guides/LINUX_SETUP.md): Linux-specific configuration
+- [Systemd Integration](./guides/SYSTEMD_SETUP.md): Running as a systemd service
+- [Nginx Configuration](./guides/NGINX_SETUP.md): Setting up with Nginx as a reverse proxy
+
+## API Endpoints
+
+### Authentication
+- **POST** `/auth/login`: Authenticate and get JWT token
+- **GET** `/auth/tokens`: List your active tokens
+- **POST** `/auth/tokens/revoke`: Revoke a specific token
+- **POST** `/auth/tokens/refresh`: Refresh your current token
+
+### Service Management
+- **GET** `/services`: List all services
+- **GET** `/services/status/{service}`: Get service status
+- **POST** `/services/start/{service}`: Start a service
+- **POST** `/services/stop/{service}`: Stop a service
+- **GET** `/services/logs/{service}`: View service logs
+
+### System
+- **GET** `/health`: System health information
 
 ## Development
 
-```powershell
-# Clone repository
-git clone https://github.com/toxic-development/SysManix.git
-cd SysManix
+### Prerequisites
+- Go 1.23.1 or newer
+- Access to system service management (admin/root privileges)
 
-# Install dependencies
-go mod download
-
-# Run in development mode
-make dev
+### Building from Source
+```bash
+git clone https://github.com/toxic-development/sysmanix.git
+cd sysmanix
+go build -o sysmanix ./client
 ```
 
-## License
-
-GNU AFFERO GENERAL PUBLIC LICENSE Version 3 - See [LICENSE](./LICENSE) file for details
+### Running Tests
+```bash
+go test -v ./...
+```
 
 ## Security
 
-Found a security issue? Please report it privately following our [Security Policy](./SECURITY.md).
+SysManix takes security seriously. Key security features:
+
+- JWT tokens with configurable expiration
+- Argon2id password hashing
+- Role-based access control
+- Protected critical system services
+- Comprehensive audit logging
+
+For detailed security information, see our [Security Guide](./guides/SECURITY.md).
+
+## License
+
+SysManix is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## Support
 

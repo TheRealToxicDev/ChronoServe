@@ -54,10 +54,10 @@ SysManix consists of several key components:
 
 To get started with SysManix, check out these guides:
 
-- [Installation Guide](./INSTALLATION.md)
-- [Quick Start Guide](./QUICKSTART.md)
-- [Authentication Guide](./AUTHENTICATION.md)
-- [Service Management Guide](./SERVICE_MANAGEMENT.md)
+- [Installation Guide](./INSTALLATION.md): Install SysManix on your system
+- [Quick Start Guide](./QUICKSTART.md): Get up and running in minutes
+- [Authentication Guide](./AUTHENTICATION.md): Learn about the authentication system
+- [Service Management Guide](./SERVICE_MANAGEMENT.md): Learn how to manage services
 
 ## Use Cases
 
@@ -76,6 +76,24 @@ Incorporate service management into CI/CD pipelines for automated deployment, te
 ### Monitoring Integrations
 
 Connect SysManix with monitoring solutions to respond to detected issues by restarting or controlling services automatically.
+
+## Technical Architecture
+
+SysManix is built with Go (version 1.23.1+) and follows a modular design:
+
+```
+SysManix/
+├── api/           # HTTP routes and handlers
+├── middleware/    # Authentication and request processing
+├── services/      # OS-specific service management
+│   ├── windows/   # Windows-specific implementations
+│   └── linux/     # Linux-specific implementations
+├── utils/         # Shared utilities
+├── config/        # Configuration management
+└── client/        # Main application entry point
+```
+
+The architecture provides clear separation of concerns and makes it easy to extend functionality for different operating systems.
 
 ## Next Steps
 

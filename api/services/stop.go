@@ -48,8 +48,8 @@ func StopService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate service name
-	if !utils.ValidateServiceName(name) {
-		utils.WriteErrorResponse(w, "Invalid service name", http.StatusBadRequest)
+	if err := utils.ValidateServiceName(name); err != nil {
+		utils.WriteErrorResponse(w, "Invalid service name: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 

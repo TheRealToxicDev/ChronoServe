@@ -1,709 +1,314 @@
-# SysManix Authentication System
+# SysManix Authentication Guide
 
-## Table of Contents
+This guide explains the authentication system used by SysManix.
 
-1. [Overview](#overview)
-2. [Authentication Flow](#authentication-flow)
-3. [Password Security](#password-security)
-4. [JWT Token System](#jwt-token-system)
-5. [Role-Based Access Control](#role-based-access-control)
-6. [Security Implementation Details](#security-implementation-details)
-7. [Command-Line Authentication](#command-line-authentication)
-8. [GUI Tool Examples](#gui-tool-examples)
-9. [Troubleshooting](#troubleshooting)
-10. [Best Practices](#best-practices)
-11. [API Examples](#api-examples)
-12. [Security Considerations](#security-considerations)
-13. [Further Reading](#further-reading)
+## Configuration
 
-## Overview
-
-SysManix implements a modern, secure authentication system combining:
-
-- **JWT (JSON Web Tokens)** for stateless authentication
-- **Argon2id** password hashing (winner of the Password Hashing Competition)
-- **Role-based access control** for fine-grained permissions
-- **Constant-time comparison** for secure credential checking
-
-This document explains how authentication works, how to use it, and best practices for security.
-
-## Authentication Flow
-
-The SysManix authentication flow consists of the following steps:
-
-1. **User Registration** (Config-based)
-   - Users are defined in the `config.yaml` file
-   - On first run, plain-text passwords are hashed automatically
-
-2. **Login Process**
-   - Client sends username and password to `/auth/login`
-   - Server validates credentials against stored hashes
-   - If valid, server generates a JWT token containing the user's roles
-   - Token is returned to the client for subsequent requests
-
-3. **Request Authorization**
-   - Client includes the JWT token in the `Authorization` header
-   - Server validates the token signature and expiration
-   - Server checks the user's roles against required permissions
-   - If authorized, the request is processed
-
-4. **Token Expiration**
-   - Tokens expire after a configurable period (default: 24 hours)
-   - When expired, users must re-authenticate
-
-### Authentication Sequence Diagram
-
-```
-┌──────┐                                  ┌──────────┐
-│Client│                                  │SysManix  │
-└──┬───┘                                  └────┬─────┘
-   │       POST /auth/login                    │
-   │      {username, password}                 │
-   │─────────────────────────────────────────>│
-   │                                          │
-   │                                          │ Validate credentials
-   │                                          │ Generate JWT
-   │                                          │
-   │      200 OK                              │
-   │      {token: "eyJhbGciOiJI..."}          │
-   │<─────────────────────────────────────────│
-   │                                          │
-   │       GET /services                       │
-   │       Authorization: Bearer eyJhbGciOiJI...│
-   │─────────────────────────────────────────>│
-   │                                          │
-   │                                          │ Validate JWT
-   │                                          │ Check permissions
-   │                                          │
-   │       200 OK                             │
-   │       {services: [...]}                  │
-   │<─────────────────────────────────────────│
-```
-
-## Password Security
-
-### Argon2id Configuration
-
-SysManix uses the Argon2id algorithm, which is designed to be resistant to both side-channel and brute force attacks. The default configuration balances security and performance:
-
-```go
-type PasswordConfig struct {
-    time    uint32 // CPU cost parameter (1)
-    memory  uint32 // Memory cost in KiB (64 * 1024 = 64MB)
-    threads uint8  // Number of threads (4)
-    keyLen  uint32 // Hash output length in bytes (32)
-}
-```
-
-These parameters can be adjusted in more security-sensitive environments. Higher values for time and memory increase security but slow down the hashing process.
-
-### Password Hashing Flow
-
-1. **Initial Configuration**:
-   When setting up SysManix, passwords are initially stored in plain text:
-
-```yaml
-users:
-    admin:
-        username: "admin"
-        password: "your-secure-password"  # Plain text (temporary)
-        roles: ["admin"]
-```
-
-2. **First Run Hash Generation**:
-   On first run, SysManix automatically:
-   - Detects plain text passwords
-   - Generates a secure random salt for each password
-   - Hashes each password using Argon2id with the salt
-   - Updates the config file, replacing plain text with secure hashes:
-
-```yaml
-users:
-    admin:
-        username: "admin"
-        password_hash: "$argon2id$v=19$m=65536,t=1,p=4$[salt-base64]$[hash-base64]"
-        roles: ["admin"]
-```
-
-3. **Future Authentication**:
-   For subsequent authentication attempts, SysManix:
-   - Extracts the salt and parameters from the hash
-   - Hashes the provided password with the same salt and parameters
-   - Uses constant-time comparison to verify the hashes match
-
-### Hash Format
-
-The Argon2id hash format follows this pattern:
-`$argon2id$v=[version]$m=[memory],t=[time],p=[parallelism]$[salt-base64]$[hash-base64]`
-
-- `argon2id`: The algorithm identifier
-- `v=19`: The Argon2 version number
-- `m=65536`: Memory cost (64MB)
-- `t=1`: Time cost (1 iteration)
-- `p=4`: Parallelism (4 threads)
-- `[salt-base64]`: Base64-encoded random salt
-- `[hash-base64]`: Base64-encoded password hash
-
-This format ensures all necessary information for validation is stored within the hash itself.
-
-## JWT Token System
-
-### Token Structure
-
-JWT tokens used by SysManix have three parts: header, payload, and signature:
-
-#### Header
-```json
-{
-  "alg": "HS256",
-  "typ": "JWT"
-}
-```
-
-#### Payload
-```json
-{
-  "uid": "admin",
-  "roles": ["admin"],
-  "exp": 1735689600,
-  "iat": 1735603200,
-  "iss": "SysManix"
-}
-```
-
-Key fields in the payload:
-- `uid`: User identifier
-- `roles`: Array of role names assigned to the user
-- `exp`: Expiration timestamp
-- `iat`: Issued-at timestamp
-- `iss`: Issuer (always "SysManix")
-
-#### Signature
-The signature is created using the HMAC-SHA256 algorithm:
-```
-HMACSHA256(
-  base64UrlEncode(header) + "." +
-  base64UrlEncode(payload),
-  secretKey
-)
-```
-
-The complete token is the concatenation of these three parts with periods:
-```
-base64UrlEncode(header) + "." + base64UrlEncode(payload) + "." + signature
-```
-
-### Token Generation Process
-
-1. **Login Request**:
-   The client submits credentials:
-```json
-{
-    "username": "admin",
-    "password": "your-secure-password"
-}
-```
-
-2. **Server Processing**:
-   - The server retrieves the user's data from config
-   - Verifies the password using Argon2id
-   - If valid, creates a new JWT with the user's roles
-   - Signs the JWT with the secret key
-
-3. **Login Response**:
-   The server returns the JWT token:
-```json
-{
-    "success": true,
-    "message": "Login successful",
-    "data": {
-        "token": "eyJhbGciOiJIUzI1...",
-        "roles": ["admin"]
-    }
-}
-```
-
-### Token Validation Process
-
-When a protected endpoint receives a request:
-
-1. The `Authorization` header is extracted
-2. The JWT token is separated from the "Bearer " prefix
-3. The token signature is verified using the secret key
-4. The token expiration is checked
-5. User roles from the token are checked against required roles
-6. If all checks pass, the request is processed
-
-## Role-Based Access Control
-
-SysManix implements role-based access control (RBAC) to manage permission levels for different users.
-
-### Available Roles
-
-| Role    | Permissions |
-|---------|-------------|
-| admin   | Full access to all endpoints, including service control operations |
-| viewer  | Read-only access (list services, view status, view logs) |
-
-### Role Validation
-
-1. When a request arrives with a JWT token:
-   - The token is validated for authenticity and expiration
-   - User roles are extracted from the token claims
-
-2. The required roles for the endpoint are checked:
-   - Most endpoints require either `admin` or `viewer` role
-   - Service control operations (start/stop) require the `admin` role
-
-3. Access is granted or denied based on whether the user has the required roles:
-   - If the user has appropriate roles, the request is processed
-   - Otherwise, a 403 Forbidden error is returned
-
-### Role Configuration
-
-Roles are defined in the `config.yaml` file:
+Ensure your `config.yaml` file is properly set up:
 
 ```yaml
 auth:
-    allowedRoles:
+  secretKey: "your-secure-random-string-here"
+  tokenDuration: 24h
+  issuedBy: "SysManix"
+  allowedRoles:
+    - admin
+    - viewer
+  users:
+    admin:
+      username: "admin"
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
         - admin
+    viewer:
+      username: "viewer"
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
         - viewer
-    users:
-        admin:
-            username: "admin"
-            password_hash: "$argon2id$v=19$..."
-            roles: ["admin"]
-        viewer:
-            username: "viewer"
-            password_hash: "$argon2id$v=19$..."
-            roles: ["viewer"]
-        poweruser:
-            username: "poweruser"
-            password_hash: "$argon2id$v=19$..."
-            roles: ["admin", "viewer"]
 ```
 
-Users can have multiple roles assigned to them. The middleware checks if a user has any of the required roles for an endpoint.
+### Adding a New User
 
-### Protected Endpoint Matrix
+To add a new user:
 
-| Endpoint | Method | Required Roles | Description |
-|----------|--------|----------------|-------------|
-| /health | GET | None (Public) | Health check endpoint |
-| /auth/login | POST | None (Public) | Authentication endpoint |
-| /services | GET | admin, viewer | List all services |
-| /services/status/{name} | GET | admin, viewer | Get service status |
-| /services/logs/{name} | GET | admin, viewer | View service logs |
-| /services/start/{name} | POST | admin | Start a service |
-| /services/stop/{name} | POST | admin | Stop a service |
+1. Add a user entry to the `users` section of the `config.yaml` file:
+   ```yaml
+   newuser:
+     username: "newuser"
+     password: "secure-password"  # Will be hashed after first run
+     roles:
+       - viewer
+   ```
 
-## Security Implementation Details
+2. Restart SysManix
+3. SysManix will automatically hash the password and update the configuration
 
-### Password Verification
+## Authentication Flow
 
-SysManix uses constant-time comparison for password verification to prevent timing attacks:
+1. The client sends credentials to the login endpoint
+2. SysManix verifies the credentials and issues a JWT token
+3. The client includes this token in all subsequent requests
+4. SysManix validates the token and checks the user's roles for each request
 
-```go
-func VerifyPassword(password, hash string) (bool, error) {
-    // Extract parameters from hash
-    params := strings.Split(hash, "$")
-    if len(params) != 5 {
-        return false, fmt.Errorf("invalid hash format")
-    }
-
-    // Parse parameters, salt, and stored hash
-    // ...
-
-    // Generate comparison hash with same parameters and salt
-    newHash := argon2.IDKey(
-        []byte(password),
-        salt,
-        time,
-        memory,
-        threads,
-        keyLen,
-    )
-
-    // Constant-time comparison to prevent timing attacks
-    return subtle.ConstantTimeCompare(existingHash, newHash) == 1, nil
-}
-```
-
-### Token Validation
-
-JWT tokens are validated with multiple security checks:
-
-```go
-func ValidateToken(token string) (*Claims, error) {
-    claims := &Claims{}
-    parsedToken, err := jwt.ParseWithClaims(
-        token,
-        claims,
-        func(t *jwt.Token) (interface{}, error) {
-            // Verify signing method
-            if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-                return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-            }
-            return []byte(config.GetConfig().Auth.SecretKey), nil
-        },
-    )
-
-    if err != nil {
-        return nil, err
-    }
-
-    if !parsedToken.Valid {
-        return nil, fmt.Errorf("invalid token")
-    }
-
-    return claims, nil
-}
-```
-
-### Token Extraction
-
-The `Authorization` header is safely extracted:
-
-```go
-func extractToken(r *http.Request) (string, error) {
-    authHeader := r.Header.Get("Authorization")
-    if (authHeader == "") {
-        return "", fmt.Errorf("no authorization header")
-    }
-
-    parts := strings.Split(authHeader, " ")
-    if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-        return "", fmt.Errorf("invalid authorization header format")
-    }
-
-    // Use constant-time comparison for token type
-    if subtle.ConstantTimeCompare([]byte(strings.ToLower(parts[0])), []byte("bearer")) != 1 {
-        return "", fmt.Errorf("invalid authorization type")
-    }
-
-    return parts[1], nil
-}
-```
-
-## Command-Line Authentication
-
-### PowerShell Authentication
-
-```powershell
-# Login and retrieve token
-$body = @{
-    username = "admin"
-    password = "your-secure-password"
-} | ConvertTo-Json
-
-$response = Invoke-RestMethod -Uri "http://localhost:40200/auth/login" `
-    -Method Post `
-    -ContentType "application/json" `
-    -Body $body
-
-# Store the token
-$token = $response.data.token
-
-# Create headers for future requests
-$headers = @{
-    Authorization = "Bearer $token"
-}
-
-# Example: List all services
-$services = Invoke-RestMethod -Uri "http://localhost:40200/services" -Headers $headers
-```
-
-### Linux/macOS Authentication (bash/curl)
+## Obtaining a Token
 
 ```bash
-# Login and retrieve token
-TOKEN=$(curl -s -X POST http://localhost:40200/auth/login \
+curl -X POST http://localhost:40200/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"your-secure-admin-password"}'
+```
+
+```powershell
+# Using PowerShell
+$auth = @{
+    username = "admin"
+    password = "your-password"
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri "http://localhost:40200/auth/login" -Method Post -Body $auth -ContentType "application/json"
+$token = $response.data.token
+```
+
+A successful login response looks like:
+
+```json
+{
+  "status": "success",
+  "message": "Login successful",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "roles": ["admin"]
+  }
+}
+```
+
+## Using the Token
+
+Include the token in the `Authorization` header for all authenticated requests:
+
+```bash
+# Using curl
+curl -X GET http://localhost:40200/services \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+```powershell
+# Using PowerShell
+$headers = @{
+    "Authorization" = "Bearer $token"
+}
+
+Invoke-RestMethod -Uri "http://localhost:40200/services" -Headers $headers
+```
+
+## Token Management
+
+SysManix provides endpoints to manage your authentication tokens.
+
+### List Active Tokens
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:40200/auth/tokens
+```
+
+```powershell
+# Using PowerShell
+Invoke-RestMethod -Uri "http://localhost:40200/auth/tokens" -Headers $headers
+```
+
+Response:
+
+```json
+{
+  "status": "success",
+  "message": "User tokens retrieved successfully",
+  "data": [
+    {
+      "tokenId": "01H5RZ4WH5P3Z72SF",
+      "userId": "admin",
+      "roles": ["admin"],
+      "issuedAt": "2023-06-15T14:23:45Z",
+      "expiresAt": "2023-06-16T14:23:45Z"
+    }
+  ]
+}
+```
+
+### Revoke a Specific Token
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"tokenId":"01H5RZ4WH5P3Z72SF"}' http://localhost:40200/auth/tokens/revoke
+```
+
+```powershell
+# Using PowerShell
+$revokeBody = @{
+    tokenId = "01H5RZ4WH5P3Z72SF"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:40200/auth/tokens/revoke" -Method Post -Headers $headers -Body $revokeBody -ContentType "application/json"
+```
+
+### Revoke All Your Tokens
+
+```bash
+# Using curl
+curl -X POST http://localhost:40200/auth/tokens/revoke-all \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+```powershell
+# Using PowerShell
+Invoke-RestMethod -Uri "http://localhost:40200/auth/tokens/revoke-all" -Method Post -Headers $headers
+```
+
+### Refresh Your Token
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" http://localhost:40200/auth/tokens/refresh
+```
+
+```powershell
+# Using PowerShell
+$refreshResponse = Invoke-RestMethod -Uri "http://localhost:40200/auth/tokens/refresh" -Method Post -Headers $headers
+
+# Update token for future requests
+$token = $refreshResponse.data.token
+$headers = @{
+    "Authorization" = "Bearer $token"
+}
+```
+
+## Admin Token Management
+
+Users with the `admin` role have access to additional token management capabilities:
+
+### List All Tokens (Admin)
+
+```bash
+# Using curl
+curl -X GET http://localhost:40200/auth/admin/tokens \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE"
+```
+
+```powershell
+# Using PowerShell (with admin token)
+Invoke-RestMethod -Uri "http://localhost:40200/auth/admin/tokens" -Headers $adminHeaders
+```
+
+### List Tokens for a Specific User (Admin)
+
+```bash
+# Using curl
+curl -X GET "http://localhost:40200/auth/admin/tokens/user?userId=viewer" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE"
+```
+
+```powershell
+# Using PowerShell (with admin token)
+Invoke-RestMethod -Uri "http://localhost:40200/auth/admin/tokens/user?userId=viewer" -Headers $adminHeaders
+```
+
+### Revoke All Tokens for a User (Admin)
+
+```bash
+# Using curl
+curl -X POST http://localhost:40200/auth/admin/tokens/revoke \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your-secure-password"}' \
-  | jq -r '.data.token')
-
-# Example: List all services
-curl -H "Authorization: Bearer $TOKEN" http://localhost:40200/services
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
+  -d '{"userId":"viewer"}'
 ```
 
-### Python Example
+```powershell
+# Using PowerShell (with admin token)
+$revokeBody = @{
+    userId = "viewer"
+} | ConvertTo-Json
 
-```python
-import requests
-import json
-
-# Login and retrieve token
-response = requests.post(
-    "http://localhost:40200/auth/login",
-    headers={"Content-Type": "application/json"},
-    data=json.dumps({"username": "admin", "password": "your-secure-password"})
-)
-
-token = response.json()["data"]["token"]
-
-# Example: List all services
-services = requests.get(
-    "http://localhost:40200/services",
-    headers={"Authorization": f"Bearer {token}"}
-)
-
-print(json.dumps(services.json(), indent=2))
+Invoke-RestMethod -Uri "http://localhost:40200/auth/admin/tokens/revoke" -Method Post -Headers $adminHeaders -Body $revokeBody -ContentType "application/json"
 ```
 
-## GUI Tool Examples
+## Role-Based Access Control
 
-### Postman
+SysManix implements role-based access control with these built-in roles:
 
-![Postman Authentication](https://i.imgur.com/example-postman.png)
+| Role    | Permissions |
+|---------|------------|
+| admin   | Full access to all endpoints including service start/stop and token management |
+| viewer  | Read-only access to services, logs, and status |
 
-1. Create a new POST request to `http://localhost:40200/auth/login`
-2. Set the body to raw JSON:
-   ```json
-   {
-       "username": "admin",
-       "password": "your-secure-password"
-   }
-   ```
-3. Send the request and save the token
-4. For subsequent requests:
-   - In the Authorization tab, select "Bearer Token"
-   - Paste your token in the Token field
+### Permission Matrix
 
-### Insomnia
+| Endpoint | Method | admin | viewer |
+|----------|--------|-------|--------|
+| `/services` | GET | ✅ | ✅ |
+| `/services/status/{name}` | GET | ✅ | ✅ |
+| `/services/logs/{name}` | GET | ✅ | ✅ |
+| `/services/start/{name}` | POST | ✅ | ❌ |
+| `/services/stop/{name}` | POST | ✅ | ❌ |
+| `/auth/tokens` | GET | ✅ | ✅ |
+| `/auth/tokens/revoke` | POST | ✅ | ✅ |
+| `/auth/admin/tokens` | GET | ✅ | ❌ |
 
-1. Create a new POST request to `http://localhost:40200/auth/login`
-2. Set the body to JSON:
-   ```json
-   {
-       "username": "admin",
-       "password": "your-secure-password"
-   }
-   ```
-3. Send the request and copy the token from the response
-4. For subsequent requests:
-   - In the Auth tab, select "Bearer Token"
-   - Paste your token
+## Security Considerations
+
+### Password Security
+
+SysManix uses Argon2id for password hashing with these parameters:
+
+- Memory: 64 MB
+- Iterations: 1
+- Parallelism: 4
+- Key length: 32 bytes
+
+These parameters provide strong security against various attack vectors, including brute force and side-channel attacks.
+
+### JWT Security
+
+To enhance JWT security:
+
+1. Use a strong, randomly generated `secretKey` (at least 32 characters)
+2. Set an appropriate `tokenDuration` based on your security requirements
+3. Rotate the secret key periodically in production environments
+4. Use HTTPS in production to protect token transmission
+
+### Best Practices
+
+1. **Secure Storage**: Store tokens securely in your client applications
+2. **Token Refresh**: For long-running sessions, refresh tokens periodically
+3. **Least Privilege**: Assign the minimum necessary roles to users
+4. **Token Revocation**: Implement token logout by revoking tokens when sessions end
+5. **Regular Audits**: Periodically review and clean up active tokens
 
 ## Troubleshooting
 
 ### Common Authentication Issues
 
-#### Invalid Credentials Error
+1. **Invalid credentials**:
+   - Verify username and password
+   - Check if the user exists in the configuration
 
-**Symptom:**
-```json
-{
-    "success": false,
-    "error": "Invalid credentials"
-}
-```
+2. **Token expired**:
+   - Use the refresh token endpoint
+   - Authenticate again to get a new token
 
-**Causes and Solutions:**
-1. **Username mismatch**
-   - Verify that the username matches exactly what's in config.yaml
-   - Check for case sensitivity (usernames are case-sensitive)
+3. **Insufficient permissions**:
+   - Verify the user has the required role for the operation
+   - Check the JWT payload to confirm assigned roles
 
-2. **Password mismatch**
-   - If you've forgotten the password, add a new plain-text password to config.yaml and remove the password_hash
-   - Restart the app to generate a new hash
+4. **Token validation errors**:
+   - Ensure the token is being sent correctly in the Authorization header
+   - Verify the token hasn't been tampered with
 
-3. **Config file issues**
-   - Ensure the username in login request matches the key in the users map:
-   ```yaml
-   users:
-       admin:            # This must match the login username
-           username: "admin"
-           password_hash: "..."
-   ```
+### Debugging Authentication
 
-#### Token Validation Failed
+To troubleshoot authentication issues:
 
-**Symptom:**
-```json
-{
-    "success": false,
-    "error": "Invalid or expired token"
-}
-```
-
-**Causes and Solutions:**
-1. **Token expired**
-   - Re-authenticate to get a new token
-   - Check if the server's system clock is accurate
-   - Consider increasing token duration in config.yaml
-
-2. **Invalid token format**
-   - Ensure the token is passed correctly in the Authorization header
-   - Format should be: `Authorization: Bearer your-token-here`
-   - Check for extra spaces or encoding issues
-
-3. **Secret key mismatch**
-   - If the server's secret key was changed, all existing tokens become invalid
-   - Re-authenticate to get a new token
-
-#### Role Access Denied
-
-**Symptom:**
-```json
-{
-    "success": false,
-    "error": "Forbidden",
-    "code": 403
-}
-```
-
-**Causes and Solutions:**
-1. **Insufficient permissions**
-   - Check that your user has the required role for the endpoint
-   - Service control endpoints require admin role
-
-2. **Role configuration**
-   - Verify roles are correctly assigned in config.yaml
-   - Check that the role exists in the allowedRoles list
-
-## Best Practices
-
-### Password Security
-
-1. **Strong Passwords**
-   - Minimum length: 12 characters
-   - Mix of uppercase, lowercase, numbers, and symbols
-   - Avoid dictionary words and common patterns
-   - Unique for each system
-
-2. **Secret Key Protection**
-   - Change the default secret key to a strong random value
-   - Minimum 32 characters, random alphanumeric + symbols
-   - Keep the secret key secure and consider using environment variables
-
-3. **Password Storage**
-   - Never store plain-text passwords in production
-   - Let SysManix handle password hashing automatically
-
-### Token Management
-
-1. **Token Expiration**
-   - Use a reasonable expiration time (24h is default)
-   - Shorter for higher security environments (e.g., 1h)
-   - Re-authenticate when tokens expire
-
-2. **Token Transmission**
-   - Always use HTTPS in production
-   - Keep tokens secure in your client applications
-   - Clear tokens when logging out or on session end
-
-3. **Error Handling**
-   - Don't expose sensitive data in error messages
-   - Implement rate limiting for login attempts
-
-## API Examples
-
-### Login Request and Response
-
-**Request:**
-```http
-POST /auth/login HTTP/1.1
-Host: localhost:40200
-Content-Type: application/json
-
-{
-    "username": "admin",
-    "password": "your-secure-password"
-}
-```
-
-**Response:**
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "message": "Login successful",
-    "data": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "roles": ["admin"]
-    }
-}
-```
-
-### Protected API Request
-
-```http
-GET /services HTTP/1.1
-Host: localhost:40200
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-### Unauthorized Response
-
-```http
-HTTP/1.1 401 Unauthorized
-Content-Type: application/json
-
-{
-    "success": false,
-    "error": "Invalid or expired token",
-    "code": 401
-}
-```
-
-### Forbidden Response
-
-```http
-HTTP/1.1 403 Forbidden
-Content-Type: application/json
-
-{
-    "success": false,
-    "error": "Insufficient permissions to access this resource",
-    "code": 403
-}
-```
-
-## Security Considerations
-
-### JWT Token Leakage Prevention
-
-JWT tokens should be treated as sensitive data. If a token is compromised, an attacker could gain access to your system until the token expires.
-
-To mitigate token leakage risks:
-
-1. **Never store tokens in client-side storage (localStorage)** in web applications
-2. Use HttpOnly cookies or secure memory for token storage
-3. Implement token revocation for compromised tokens
-4. Use short token expiration periods for sensitive systems
-
-### Rate Limiting
-
-SysManix implements rate limiting for login attempts to prevent brute force attacks:
-
-- By default, 5 failed login attempts results in a temporary lockout (5 minutes)
-- Rate limiting is tracked by both username and IP address
-- Successful login resets the failed attempt counter
-
-### Audit Logging
-
-Authentication events are logged to `auth.log` with the following details:
-
-1. Timestamp
-2. Event type (login attempt, success, failure)
-3. Username
-4. Source IP address
-5. User agent
-6. Success/failure reason
-
-Example:
-```
-2023-06-15 13:45:22 [INFO] Login successful: username=admin, ip=192.168.1.5
-2023-06-15 13:46:15 [WARN] Login failed: username=admin, ip=192.168.1.100, reason="Invalid credentials"
-2023-06-15 13:47:03 [WARN] Rate limit reached: username=unknown, ip=192.168.1.200, attempts=5
-```
+1. Check the server logs for authentication failures
+2. Decode your JWT token at [jwt.io](https://jwt.io/) to inspect the payload
+3. Verify the token expiration time in the payload
 
 ## Further Reading
 
-- [OWASP JWT Security Cheatsheet](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
-- [NIST Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
-- [Argon2 Password Hashing](https://github.com/P-H-C/phc-winner-argon2)
-- [SysManix Service Management Guide](SERVICE_MANAGEMENT.md)
-- [SysManix Permissions Guide](PERMISSIONS.md)
+- [JWT.io](https://jwt.io/introduction): Introduction to JWT tokens
+- [Argon2 Specifications](https://github.com/P-H-C/phc-winner-argon2/blob/master/argon2-specs.pdf): Details on the Argon2 hashing algorithm
+- [API Reference](./API_REFERENCE.md): Complete API documentation
+- [Configuration Guide](./CONFIGURATION.md): Detailed authentication configuration

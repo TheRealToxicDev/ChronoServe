@@ -261,3 +261,121 @@ logging:
 ## API Reference
 
 See [API_REFERENCE.md](API_REFERENCE.md) for detailed API documentation.
+
+# SysManix Documentation Guide
+
+This document serves as an index for all SysManix documentation and provides an overview of available resources.
+
+## Documentation Structure
+
+SysManix documentation is organized into several guides, each focused on specific aspects of the system:
+
+### Core Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Introduction](./INTRODUCTION.md) | Overview of SysManix, its features, and use cases |
+| [Getting Started](./GETTING_STARTED.md) | Quick start guide to get up and running |
+| [Installation](./INSTALLATION.md) | Detailed installation instructions for all platforms |
+| [Quick Start](./QUICKSTART.md) | Fast setup and basic usage examples |
+| [Configuration](./CONFIGURATION.md) | Comprehensive configuration options |
+| [API Reference](./API_REFERENCE.md) | Complete API endpoint documentation |
+
+### Feature-Specific Guides
+
+| Guide | Description |
+|-------|-------------|
+| [Authentication](./AUTHENTICATION.md) | User management, JWT tokens, and security |
+| [Service Management](./SERVICE_MANAGEMENT.md) | Detailed guide on managing system services |
+| [Permissions](./PERMISSIONS.md) | Role-based access control and permission model |
+| [Security](./SECURITY.md) | Security best practices and hardening guide |
+
+### Platform-Specific Guides
+
+| Guide | Description |
+|-------|-------------|
+| [Windows Setup](./WINDOWS_SETUP.md) | Windows-specific installation and configuration |
+| [Linux Setup](./LINUX_SETUP.md) | Linux-specific installation and configuration |
+| [Systemd Setup](./SYSTEMD_SETUP.md) | Using SysManix with systemd services |
+| [Nginx Setup](./NGINX_SETUP.md) | Setting up Nginx as a reverse proxy |
+
+### Advanced Topics
+
+| Guide | Description |
+|-------|-------------|
+| [Troubleshooting](./TROUBLESHOOTING.md) | Common issues and solutions |
+| [Versions](./VERSIONS.md) | Version history and compatibility information |
+
+## Recommended Reading Path
+
+### For New Users
+
+1. [Introduction](./INTRODUCTION.md) - Understand what SysManix is
+2. [Getting Started](./GETTING_STARTED.md) - Basic installation and usage
+3. [Configuration](./CONFIGURATION.md) - Configure for your environment
+4. Platform-specific guide: [Windows Setup](./WINDOWS_SETUP.md) or [Linux Setup](./LINUX_SETUP.md)
+5. [Service Management](./SERVICE_MANAGEMENT.md) - Learn how to manage services
+
+### For Administrators
+
+1. [Security](./SECURITY.md) - Security best practices
+2. [Authentication](./AUTHENTICATION.md) - User management and authentication
+3. [Permissions](./PERMISSIONS.md) - Configure role-based access
+4. [Nginx Setup](./NGINX_SETUP.md) - Production deployment with HTTPS
+5. [Troubleshooting](./TROUBLESHOOTING.md) - Solve common issues
+
+### For Developers
+
+1. [API Reference](./API_REFERENCE.md) - Complete API documentation
+2. [Authentication](./AUTHENTICATION.md) - JWT token usage
+3. Code examples in [Service Management](./SERVICE_MANAGEMENT.md)
+
+## Documentation Format
+
+All guides follow a consistent format:
+
+- **Introductory section**: Brief overview of the topic
+- **Main content**: Detailed information with examples
+- **Platform-specific sections**: Differences between Windows and Linux
+- **Examples**: Code samples and usage scenarios
+- **Troubleshooting**: Common issues related to the topic
+
+## Contributing to Documentation
+
+We welcome contributions to improve SysManix documentation. Please follow these guidelines:
+
+1. **Clarity** - Write clear, concise explanations
+2. **Examples** - Include practical examples for each concept
+3. **Accuracy** - Ensure all information is correct and up-to-date
+4. **Consistency** - Follow the established format and style
+5. **Cross-reference** - Link to other relevant guides where appropriate
+
+To contribute documentation improvements:
+
+1. Fork the repository
+2. Make your changes
+3. Submit a pull request with a description of your changes
+
+## Finding Information
+
+You can find information in the SysManix documentation in several ways:
+
+- **Navigation**: Use the links in this guide to navigate directly to specific topics
+- **Search**: Use your browser's search function (Ctrl+F) within guides
+- **Cross-references**: Follow links between guides for related topics
+- **API Reference**: For endpoint-specific details, refer to the [API Reference](./API_REFERENCE.md)
+
+If you can't find the information you need, please check the [Troubleshooting](./TROUBLESHOOTING.md) guide for common issues or report a documentation issue on our GitHub repository.
+
+## Additional Resources
+
+In addition to these guides, SysManix provides:
+
+- **CLI Help**: Run `./sysmanix --help` for command-line options
+- **Swagger Documentation**: Available at `/swagger/` when enabled in config
+- **Health Endpoint**: Check `/health` for system status information
+- **GitHub Repository**: Visit our [repository](https://github.com/toxic-development/sysmanix) for latest updates and issues
+
+## Version Information
+
+The current documentation applies to SysManix version 0.1.0 and later. For version-specific information, see the [Versions](./VERSIONS.md) guide.

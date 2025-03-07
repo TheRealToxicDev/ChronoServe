@@ -1,415 +1,440 @@
 # SysManix Troubleshooting Guide
 
-## Table of Contents
-- [Common Issues](#common-issues)
-  - [Authentication Issues](#authentication-issues)
-    - [Invalid Credentials Error](#invalid-credentials-error)
-    - [Token Validation Failed](#token-validation-failed)
-  - [Service Access Issues](#service-access-issues)
-    - [Permission Denied](#permission-denied)
-    - [Service Not Found](#service-not-found)
-    - [Protected System Service](#protected-system-service)
-    - [Service Operation Timeout](#service-operation-timeout)
-  - [Configuration Issues](#configuration-issues)
-    - [Default Security Values](#default-security-values)
-    - [Port Already in Use](#port-already-in-use)
-  - [Logging Issues](#logging-issues)
-    - [Missing Log Files](#missing-log-files)
-- [Debugging Tips](#debugging-tips)
-  - [Enable Debug Logging](#enable-debug-logging)
-  - [Check Log Files](#check-log-files)
-  - [Test Health Endpoint](#test-health-endpoint)
-  - [Verify Service Status](#verify-service-status)
-- [Common Error Messages](#common-error-messages)
-- [Network Troubleshooting](#network-troubleshooting)
-  - [Connection Refused](#connection-refused)
-  - [CORS Errors](#cors-errors)
-- [Performance Issues](#performance-issues)
-  - [Slow API Response](#slow-api-response)
-  - [High Memory Usage](#high-memory-usage)
-- [Installation Problems](#installation-problems)
-  - [Missing Dependencies](#missing-dependencies)
-  - [Permission Issues](#permission-issues)
-- [Getting Help](#getting-help)
+This guide provides solutions to common issues encountered while using SysManix.
 
-## Common Issues
+## Table of Contents
+- [Common Issues and Solutions](#common-issues-and-solutions)
+  - [Installation Issues](#installation-issues)
+    - [Unable to start SysManix](#unable-to-start-sysmanix)
+    - [Permission Denied Errors](#permission-denied-errors)
+  - [Authentication Issues](#authentication-issues)
+    - ["Invalid credentials" error](#invalid-credentials-error)
+    - ["Token expired" or "Invalid token" errors](#token-expired-or-invalid-token-errors)
+  - [Service Management Issues](#service-management-issues)
+    - [Service operations timing out](#service-operations-timing-out)
+    - ["Protected system service" errors](#protected-system-service-errors)
+  - [Configuration Issues](#configuration-issues)
+    - [Configuration not being applied](#configuration-not-being-applied)
+    - [Default credentials security warning](#default-credentials-security-warning)
+  - [Platform-Specific Issues](#platform-specific-issues)
+    - [Windows Service Issues](#windows-service-issues)
+    - [Linux Service Issues](#linux-service-issues)
+  - [Network Issues](#network-issues)
+    - [API inaccessible from remote hosts](#api-inaccessible-from-remote-hosts)
+    - [CORS-related errors](#cors-related-errors)
+  - [Performance Issues](#performance-issues)
+    - [Slow service listing](#slow-service-listing)
+    - [High CPU or memory usage](#high-cpu-or-memory-usage)
+  - [Logging and Diagnostics](#logging-and-diagnostics)
+    - [Insufficient logging information](#insufficient-logging-information)
+    - [Log files growing too large](#log-files-growing-too-large)
+- [Diagnostic Procedures](#diagnostic-procedures)
+  - [Health Check Endpoint](#health-check-endpoint)
+  - [API Testing](#api-testing)
+  - [Configuration Verification](#configuration-verification)
+- [Getting Help](#getting-help)
+- [Common Error Codes](#common-error-codes)
+
+## Common Issues and Solutions
+
+### Installation Issues
+
+#### Unable to start SysManix
+
+**Symptoms:**
+- Application crashes immediately after starting
+- Error message about port already in use
+
+**Potential Solutions:**
+1. Check if another application is using port 40200
+   ```bash
+   # Linux
+   sudo netstat -tulpn | grep 40200
+
+   # Windows (PowerShell)
+   netstat -ano | findstr 40200
+   ```
+2. Change the port in `config.yaml`:
+   ```yaml
+   server:
+     port: 8080  # Change to an available port
+   ```
+
+#### Permission Denied Errors
+
+**Symptoms:**
+- Error messages containing "permission denied" or "access denied"
+- Unable to start/stop services
+
+**Potential Solutions:**
+1. Ensure SysManix is running with administrative privileges
+   ```bash
+   # Linux
+   sudo ./sysmanix
+
+   # Windows (PowerShell as Administrator)
+   Start-Process .\SysManix.exe -Verb RunAs
+   ```
+2. Check file permissions on the config file
+   ```bash
+   # Linux
+   sudo chmod 640 /etc/sysmanix/config.yaml
+   sudo chown root:sysmanix /etc/sysmanix/config.yaml
+   ```
 
 ### Authentication Issues
 
-#### Invalid Credentials Error
+#### "Invalid credentials" error
 
-**Symptom:**
-```
-{
-    "success": false,
-    "error": "Invalid credentials"
-}
-```
+**Symptoms:**
+- Login attempts fail with "Invalid credentials" message
+- Unable to obtain JWT token
 
-**Common Causes:**
-1. Username mismatch in config
-2. Incorrect map key in users configuration
-3. Password not matching stored hash
+**Potential Solutions:**
+1. Verify username and password in your request
+2. Check if the user exists in the config.yaml file
+3. Reset the password by editing config.yaml:
+   ```yaml
+   auth:
+     users:
+       admin:
+         username: "admin"
+         password: "new-password"  # Will be hashed after restart
+         # password_hash will be regenerated
+   ```
+4. Restart SysManix to hash the new password
 
-**Solution:**
-1. Check your config.yaml structure. The user map key should match the login username:
+#### "Token expired" or "Invalid token" errors
 
-```yaml
-auth:
-    users:
-        toxicdev:            # This key must match login username
-            username: toxicdev
-            password_hash: "$argon2id$v=19$..."
-            roles: ["admin"]
-```
+**Symptoms:**
+- API requests fail with 401 Unauthorized
+- Error messages about expired or invalid tokens
 
-2. If setting up a new password:
-   - Add password field to config
-   - Remove password_hash
-   - Restart application
-   - Let it generate new hash
+**Potential Solutions:**
+1. Obtain a new token through the login endpoint
+2. Use the token refresh endpoint:
+   ```bash
+   curl -X POST http://localhost:40200/auth/tokens/refresh \
+     -H "Authorization: Bearer YOUR_EXPIRED_TOKEN"
+   ```
+3. Increase token duration in config.yaml (default is 24h)
+   ```yaml
+   auth:
+     tokenDuration: 72h  # 3 days
+   ```
 
-#### Token Validation Failed
+### Service Management Issues
 
-**Symptom:**
-```
-{
-    "success": false,
-    "error": "Invalid or expired token"
-}
-```
+#### Service operations timing out
 
-**Solution:**
-1. Check token expiration
-2. Re-authenticate to get new token
-3. Verify secret key hasn't changed
+**Symptoms:**
+- Start/stop operations taking too long
+- 408 Request Timeout errors
 
-### Service Access Issues
+**Potential Solutions:**
+1. Check service status in OS directly to see if it's responsive
+   ```bash
+   # Linux
+   systemctl status service-name
 
-#### Permission Denied
+   # Windows (PowerShell)
+   Get-Service service-name
+   ```
+2. Increase operation timeout in code or config
+3. Restart the problematic service from OS native tools
+4. Check service logs for underlying issues:
+   ```bash
+   # Linux
+   journalctl -u service-name
 
-**Symptom:**
-```
-{
-    "success": false,
-    "error": "Insufficient permissions"
-}
-```
+   # Windows (PowerShell)
+   Get-EventLog -LogName System | Where-Object {$_.Source -eq "service-name"}
+   ```
 
-**Solution:**
-1. Verify user has correct roles
-2. Check role requirements:
-   - `admin`: Required for start/stop
-   - `viewer`: Can only view logs/status
+#### "Protected system service" errors
 
-#### Service Not Found
+**Symptoms:**
+- 403 Forbidden responses
+- Error message about protected services
 
-**Symptom:**
-```
-"Failed to retrieve logs for service XYZ: exit status 1"
-```
+**Explanation:**
+- SysManix prevents operations on critical system services by design
+- This is a safety feature to prevent system instability
 
-**Solution:**
-1. List available services:
-```powershell
-$headers = @{
-    Authorization = "Bearer $token"
-}
-Invoke-RestMethod -Uri "http://localhost:40200/services" -Headers $headers
-```
-
-2. Try these common service names:
-- `wuauserv` (Windows Update)
-- `EventLog` (Event Logging)
-- `WinRM` (Remote Management)
-
-#### Protected System Service
-
-**Symptom:**
-```
-{
-    "success": false,
-    "error": "operation not allowed on protected system service: wininit",
-    "code": 403
-}
-```
-
-**Solution:**
-This is a security feature. Critical system services are protected from modifications to prevent system damage:
-
-1. Windows protected services include:
-   - `wininit`, `csrss`, `services`, `lsass`, `winlogon`, and other critical Windows components
-
-2. Linux protected services include:
-   - `systemd`, `systemd-journald`, `sshd`, `dbus`, and other core system services
-
-3. Use alternate services that can be safely modified
-
-#### Service Operation Timeout
-
-**Symptom:**
-```
-"timeout waiting for service to start (status: starting)"
-```
-
-**Solution:**
-1. Service operation may be in progress but taking longer than the timeout (10 seconds)
-2. Check service status manually:
-```powershell
-# For Windows
-Get-Service servicename
-
-# For Linux
-systemctl status servicename
-```
-3. Some services have dependencies that need to start first
-4. Try starting the service with elevated privileges directly on the system
+**Potential Solutions:**
+1. Use a different, non-protected service
+2. If necessary, modify the protected services list in your code:
+   ```go
+   // In windows/critical.go or linux/critical.go
+   // Modify the protection list carefully and at your own risk
+   ```
 
 ### Configuration Issues
 
-#### Default Security Values
+#### Configuration not being applied
 
-**Symptom:**
-```
-"security risk: default secret key must be changed"
-```
+**Symptoms:**
+- Changes to config.yaml don't seem to take effect
+- Default values used instead of configured ones
 
-**Solution:**
-1. Update config.yaml:
-```yaml
-auth:
-    secretKey: "your-secure-key"  # Change this
-    users:
-        admin:
-            password: "new-password"  # Add this, remove password_hash
-```
+**Potential Solutions:**
+1. Verify the config file path is correct
+2. Make sure the yaml syntax is valid
+3. Restart SysManix after configuration changes
+4. Check logs for configuration parsing errors
+5. Try running with explicit config path:
+   ```bash
+   ./sysmanix -config /path/to/config.yaml
+   ```
 
-2. Restart application
+#### Default credentials security warning
 
-#### Port Already in Use
+**Symptoms:**
+- Warning about default credentials on startup
+- Security risks reported in logs
 
-**Symptom:**
-```
-"listen tcp :40200: bind: address already in use"
-```
+**Potential Solutions:**
+1. Change the default secret key:
+   ```yaml
+   auth:
+     secretKey: "generate-a-long-random-string-here"
+   ```
+2. Update default user passwords
+3. Restart SysManix to apply changes
 
-**Solution:**
-1. Find process using port:
-```powershell
-netstat -ano | findstr :40200
-```
+### Platform-Specific Issues
 
-2. Change port in config:
-```yaml
-server:
-    port: 40201  # Use different port
-```
+#### Windows Service Issues
 
-### Logging Issues
+**Symptoms:**
+- Unable to retrieve Windows service information
+- PowerShell execution errors
 
-#### Missing Log Files
+**Potential Solutions:**
+1. Ensure PowerShell execution policy allows script execution:
+   ```powershell
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+   ```
+2. Run SysManix as Administrator
+3. Check Windows Event Viewer for PowerShell errors
+4. Verify service names match exactly (case-sensitive)
 
-**Symptom:**
-Log files not appearing in logs directory
+#### Linux Service Issues
 
-**Solution:**
-1. Check permissions
-2. Verify log config:
-```yaml
-logging:
-    level: debug
-    directory: logs
-    maxSize: 10
-```
+**Symptoms:**
+- Unable to control systemd services
+- Permission errors when accessing systemctl
 
-3. Create logs directory manually:
-```powershell
-mkdir logs
-```
+**Potential Solutions:**
+1. Run SysManix as root or with sudo
+2. Ensure systemd is available and running:
+   ```bash
+   systemctl --version
+   ```
+3. Check if user has proper sudo permissions for systemctl
+4. Try adding user to systemd-journal group:
+   ```bash
+   sudo usermod -a -G systemd-journal username
+   ```
 
-## Debugging Tips
+### Network Issues
 
-### Enable Debug Logging
-```yaml
-logging:
-    level: debug  # Set to debug for more info
-```
+#### API inaccessible from remote hosts
 
-### Check Log Files
-```powershell
-# View authentication logs
-Get-Content .\logs\auth.log -Tail 20
+**Symptoms:**
+- Can access API locally but not from other machines
+- Connection refused or timeout errors
 
-# View application logs
-Get-Content .\logs\app.log -Tail 20
-```
+**Potential Solutions:**
+1. Check host configuration in config.yaml:
+   ```yaml
+   server:
+     host: "0.0.0.0"  # Listen on all interfaces, not just localhost
+   ```
+2. Verify firewall rules allow access to the configured port
+3. Check if any security software is blocking connections
+4. Verify network routing between client and server
 
-### Test Health Endpoint
-```powershell
-Invoke-RestMethod -Uri "http://localhost:40200/health"
-```
+#### CORS-related errors
 
-### Verify Service Status
-```powershell
-# PowerShell
-Get-Service wuauserv  # Check actual service status
+**Symptoms:**
+- Browser console shows CORS errors
+- Web clients can't access API
 
-# SysManix
-$headers = @{
-    Authorization = "Bearer $token"
-}
-Invoke-RestMethod -Uri "http://localhost:40200/services/status/wuauserv" -Headers $headers
-```
-
-## Common Error Messages
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Invalid credentials" | Username/password mismatch | Check config user map key |
-| "Invalid token" | Expired/malformed JWT | Re-authenticate |
-| "Insufficient permissions" | Missing required role | Check user roles |
-| "Service not found" | Invalid service name | Use correct service identifier |
-| "Default secret key" | Security risk | Update auth.secretKey |
-
-### Network Troubleshooting
-
-#### Connection Refused
-
-**Symptom:**
-```
-"Failed to connect to localhost:40200: Connection refused"
-```
-
-**Common Causes:**
-1. SysManix service not running
-2. Incorrect port configuration
-3. Firewall blocking connection
-
-**Solution:**
-1. Check if service is running:
-```powershell
-# For Windows
-Get-Process -Name SysManix* -ErrorAction SilentlyContinue
-```
-
-2. Verify listening port:
-```powershell
-netstat -ano | findstr :40200
-```
-
-3. Check firewall settings:
-```powershell
-# For Windows
-New-NetFirewallRule -DisplayName "Allow SysManix" -Direction Inbound -LocalPort 40200 -Protocol TCP -Action Allow
-```
-
-#### CORS Errors
-
-**Symptom:**
-Browser console shows:
-```
-Access to fetch at 'http://localhost:40200/auth' from origin 'http://localhost:3000' has been blocked by CORS policy
-```
-
-**Solution:**
-1. Update config.yaml to allow your frontend origin:
-```yaml
-server:
-  cors:
-    allowed_origins: ["http://localhost:3000"]
-    allowed_methods: ["GET", "POST", "PUT", "DELETE"]
-    allowed_headers: ["Content-Type", "Authorization"]
-```
-
-2. Restart the application
+**Potential Solutions:**
+1. Verify CORS middleware is properly configured
+2. Ensure API responses include proper CORS headers
+3. For testing, try a browser extension that disables CORS restrictions
 
 ### Performance Issues
 
-#### Slow API Response
+#### Slow service listing
 
-**Symptom:**
-API calls taking more than 1-2 seconds to respond
+**Symptoms:**
+- `/services` endpoint takes a long time to respond
+- Timeouts when listing many services
 
-**Solutions:**
-1. Check system resource usage:
+**Potential Solutions:**
+1. Implement pagination for service listing
+2. Reduce timeout threshold in client applications
+3. Monitor system resource usage during operations
+4. Optimize service status retrieval to use more efficient commands
+
+#### High CPU or memory usage
+
+**Symptoms:**
+- SysManix consuming excessive system resources
+- System performance degradation
+
+**Potential Solutions:**
+1. Check for memory leaks in long-running instances
+2. Implement request throttling for busy API endpoints
+3. Add more granular logging to identify resource-heavy operations
+4. Consider implementing caching for frequent service status requests
+
+### Logging and Diagnostics
+
+#### Insufficient logging information
+
+**Symptoms:**
+- Unable to troubleshoot issues due to limited log data
+- Missing context in error messages
+
+**Potential Solutions:**
+1. Increase log verbosity in config.yaml:
+   ```yaml
+   logging:
+     level: "debug"  # Options: debug, info, warn, error
+   ```
+2. Enable request/response logging for API endpoints
+3. Add specific debug flags for problematic components
+4. Implement structured logging for better parsing
+
+#### Log files growing too large
+
+**Symptoms:**
+- Disk space filling up quickly
+- Log files becoming unmanageable
+
+**Potential Solutions:**
+1. Configure log rotation in config.yaml:
+   ```yaml
+   logging:
+     maxSize: 10    # MB per file
+     maxBackups: 5  # Number of rotated files to keep
+     compress: true # Compress old log files
+   ```
+2. Reduce logging verbosity in production
+3. Implement external log management (e.g., syslog, ELK stack)
+
+### Configuration File Not Found
+
+Ensure the `config.yaml` file is in the correct location and properly formatted.
+
+### Incorrect Credentials
+
+Verify the credentials in your `config.yaml` file:
+
+```yaml
+auth:
+  users:
+    admin:
+      username: "admin"
+      password_hash: "$argon2id$v=19$m=65536,t=1,p=4$..."
+      roles:
+        - admin
+```
+
+### Service Control Fails
+
+Ensure SysManix is running with the necessary permissions to manage services.
+
+### Logs Not Appearing
+
+Check the log directory specified in your `config.yaml` file:
+
+```yaml
+logging:
+  directory: "/var/log/sysmanix"
+```
+
+## Viewing Logs
+
+### Linux
+
+```bash
+sudo journalctl -u sysmanix
+```
+
+### Windows
+
 ```powershell
-# Check CPU/Memory
-Get-Process -Name SysManix* | Select-Object CPU, WorkingSet, ID
+Get-EventLog -LogName Application | Where-Object {$_.Source -eq "SysManix"}
 ```
 
-2. Review log files for slow operations
-3. Enable profiling in config:
-```yaml
-debug:
-  profiling: true
-  profiling_endpoint: "/debug/pprof"
+## Diagnostic Procedures
+
+### Health Check Endpoint
+
+Use the health check endpoint to verify system status:
+
+```bash
+curl http://localhost:40200/health
 ```
 
-4. Access profiles at http://localhost:40200/debug/pprof/ (requires admin login)
+The response will include:
+- Current version
+- Uptime
+- Memory usage
+- Go runtime information
 
-#### High Memory Usage
+### API Testing
 
-**Symptom:**
-SysManix process consuming excessive memory
+Use curl or Postman to test API endpoints independently:
 
-**Solutions:**
-1. Check for memory leaks in logs
-2. Adjust cache settings in config:
-```yaml
-cache:
-  max_size: 100  # Reduce cache size
-  ttl: 300       # Shorter time-to-live (seconds)
+```bash
+# Test authentication
+curl -X POST http://localhost:40200/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"your-password"}'
+
+# Test service listing
+curl -X GET http://localhost:40200/services \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-3. Restart application periodically using a scheduled task
+### Configuration Verification
 
-### Installation Problems
+Validate your configuration file syntax:
 
-#### Missing Dependencies
+```bash
+# Using yaml-lint (install first if needed)
+yaml-lint config.yaml
 
-**Symptom:**
+# Or online at https://www.yamllint.com/
 ```
-"Failed to start: exec: xyz: executable file not found in %PATH%"
-```
-
-**Solutions:**
-1. Install required dependencies:
-   - For Windows: PowerShell 5.0+ and .NET Framework 4.5+
-   - For Linux: systemd and required libraries
-
-2. For Docker installations, ensure correct base image:
-```dockerfile
-# Use correct base image
-FROM mcr.microsoft.com/windows/servercore:ltsc2019
-# OR
-FROM ubuntu:20.04
-```
-
-#### Permission Issues
-
-**Symptom:**
-```
-"Failed to access service control manager: Access is denied"
-```
-
-**Solutions:**
-1. Run application with administrative privileges
-2. Check service user permissions:
-   - Windows: Run as administrator
-   - Linux: Use sudo or proper systemd service user
 
 ## Getting Help
 
-1. Check the logs:
-   - auth.log for authentication issues
-   - app.log for application errors
-   - access.log for request history
+If you're still experiencing issues after trying the solutions in this guide:
 
-2. Documentation:
-   - [API Reference](API_REFERENCE.md)
-   - [Authentication Guide](AUTHENTICATION.md)
-   - [Configuration Guide](DOCUMENTATION.md#configuration)
+1. Check the [GitHub Issues](https://github.com/toxic-development/sysmanix/issues) for similar problems and solutions
+2. Search the project documentation for more specific guidance
+3. Open a new GitHub issue with:
+   - Detailed description of the problem
+   - Steps to reproduce
+   - Relevant logs and configuration (with sensitive data redacted)
+   - Operating system and environment details
+   - SysManix version information
 
-3. Report Issues:
-   - GitHub Issues: [SysManix Repository](https://github.com/toxic-development/SysManix)
-   - Include logs and configuration (remove sensitive data)
+## Common Error Codes
+
+| Error Code | Description | Possible Causes |
+|------------|-------------|----------------|
+| 400 | Bad Request | Invalid request body, missing parameters |
+| 401 | Unauthorized | Missing or invalid token, expired token |
+| 403 | Forbidden | Insufficient permissions, protected service |
+| 404 | Not Found | Service doesn't exist, invalid endpoint |
+| 408 | Request Timeout | Service operation took too long |
+| 500 | Internal Server Error | Server-side errors, system issues |
+| 503 | Service Unavailable | API temporarily overloaded or down |

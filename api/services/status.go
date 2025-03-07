@@ -46,8 +46,7 @@ func GetServiceStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate service name
-	if !utils.ValidateServiceName(name) {
+	if err := utils.ValidateServiceName(name); err != nil {
 		utils.WriteErrorResponse(w, "Invalid service name", http.StatusBadRequest)
 		return
 	}

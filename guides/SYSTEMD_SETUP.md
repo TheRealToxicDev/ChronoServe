@@ -1,292 +1,447 @@
-# SysManix Systemd Integration Guide
+# SysManix Systemd Setup Guide
 
-This guide explains how to set up SysManix as a systemd service on Linux systems for proper service management.
+This guide explains how to properly configure SysManix as a systemd service on Linux systems.
 
-## Prerequisites
+## Basic Systemd Service Setup
 
-- SysManix installed on a Linux system (see [Installation Guide](./INSTALLATION.md))
-- Root or sudo access
-- Systemd as the init system (standard on most modern Linux distributions)
+### Creating the Service File
 
-## Understanding Systemd Integration
-
-Running SysManix as a systemd service provides several benefits:
-
-- **Automatic startup** on system boot
-- **Dependency management** with other services
-- **Restart policies** for increased reliability
-- **Resource control** via systemd slices and limits
-- **Standardized logging** through journald
-
-## Creating a Systemd Service File
-
-1. Create a new systemd service file:
+1. Create a systemd service file:
 
 ```bash
 sudo nano /etc/systemd/system/sysmanix.service
 ```
 
-2. Add the following content, adjusting paths as necessary:
+2. Add the following content:
 
 ```ini
 [Unit]
-Description=SysManix Service Management API
-Documentation=https://github.com/toxic-development/SysManix
+Description=SysManix Service Manager
 After=network.target
-Wants=network-online.target
 
 [Service]
 Type=simple
-User=sysmanix
-Group=sysmanix
-ExecStart=/usr/bin/sysmanix serve
+User=root
+WorkingDirectory=/opt/sysmanix
+ExecStart=/opt/sysmanix/sysmanix -config /etc/sysmanix/config.yaml
 Restart=on-failure
-RestartSec=5
-TimeoutStartSec=30
-TimeoutStopSec=30
-
-# Security hardening
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_BIND_SERVICE
-NoNewPrivileges=true
-ProtectSystem=full
-ProtectHome=read-only
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-PrivateTmp=true
-
-# Working directory and environment
-WorkingDirectory=/etc/sysmanix
-Environment="CONFIG_PATH=/etc/sysmanix/config.yaml"
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-## Understanding Service Configuration Options
-
-### Basic Service Settings
-
-- **User/Group**: It's recommended to run SysManix as a dedicated user for security
-- **ExecStart**: Path to the SysManix binary with necessary arguments
-- **Restart**: Determines when systemd should restart the service
-- **RestartSec**: How long to wait before restarting the service
-- **TimeoutStartSec/TimeoutStopSec**: Maximum time allowed for start/stop operations
-
-### Security Hardening Settings
-
-- **CapabilityBoundingSet**: Limits the capabilities of the process
-- **NoNewPrivileges**: Prevents gaining new privileges via execve()
-- **ProtectSystem**: Restricts write access to the system
-- **ProtectHome**: Controls access to home directories
-- **PrivateTmp**: Provides an isolated /tmp directory
-
-## Creating a Dedicated User
-
-For enhanced security, create a dedicated user for running SysManix:
-
-```bash
-# Create sysmanix user and group
-sudo useradd -r -s /bin/false -m -d /var/lib/sysmanix sysmanix
-
-# Create necessary directories
-sudo mkdir -p /etc/sysmanix /var/log/sysmanix
-
-# Set permissions
-sudo chown -R sysmanix:sysmanix /etc/sysmanix /var/log/sysmanix
-sudo chmod 750 /etc/sysmanix /var/log/sysmanix
-```
-
-## Configuring SysManix for Systemd
-
-Ensure your SysManix configuration is placed in `/etc/sysmanix/config.yaml`. Adjust the following settings:
-
-```yaml
-server:
-  host: "0.0.0.0"  # Listen on all interfaces
-  port: 40200
-
-logging:
-  directory: "/var/log/sysmanix"
-
-linux:
-  logDirectory: "/var/log/sysmanix"
-```
-
-## Starting and Enabling the Service
-
-1. Reload systemd to recognize the new service file:
+3. Enable and start the service:
 
 ```bash
 sudo systemctl daemon-reload
-```
-
-2. Start the SysManix service:
-
-```bash
-sudo systemctl start sysmanix
-```
-
-3. Enable the service to start automatically on boot:
-
-```bash
 sudo systemctl enable sysmanix
-```
-
-4. Verify the service status:
-
-```bash
-sudo systemctl status sysmanix
-```
-
-## Viewing Logs
-
-With systemd integration, you can view SysManix logs using journalctl:
-
-```bash
-# View all SysManix logs
-sudo journalctl -u sysmanix
-
-# Follow logs in real-time
-sudo journalctl -u sysmanix -f
-
-# View logs since the last boot
-sudo journalctl -u sysmanix -b
-
-# View logs with specific log level
-sudo journalctl -u sysmanix -p err
-```
-
-## Service Management
-
-### Basic Service Control
-
-```bash
-# Stop the service
-sudo systemctl stop sysmanix
-
-# Start the service
 sudo systemctl start sysmanix
-
-# Restart the service
-sudo systemctl restart sysmanix
-
-# Reload the service (if supported)
-sudo systemctl reload sysmanix
 ```
 
-### Checking Service Status
-
-```bash
-# View detailed status
-sudo systemctl status sysmanix
-
-# Check if service is active
-sudo systemctl is-active sysmanix
-
-# Check if service is enabled at boot
-sudo systemctl is-enabled sysmanix
-
-# View service dependencies
-sudo systemctl list-dependencies sysmanix
-```
-
-## Advanced Systemd Configuration
-
-### Resource Limits
-
-You can add resource limits to your service by adding the following to the `[Service]` section:
-
-```ini
-# Memory limit (example: 2GB)
-MemoryLimit=2G
-
-# CPU limits
-CPUQuota=50%
-
-# Process limits
-LimitNPROC=64
-LimitNOFILE=4096
-```
-
-### Restart Policies
-
-For a more robust restart policy, adjust these settings:
-
-```ini
-Restart=always
-RestartSec=5
-StartLimitIntervalSec=500
-StartLimitBurst=5
-```
+## Advanced Service Configuration
 
 ### Environment Variables
 
-Add additional environment variables:
+You can set environment variables in the systemd service file:
 
 ```ini
-Environment="DEBUG=false"
-Environment="LOG_LEVEL=info"
-EnvironmentFile=/etc/sysmanix/env
+[Service]
+Environment="SYSMANIX_LOG_LEVEL=debug"
+Environment="SYSMANIX_SERVER_PORT=8080"
 ```
 
-## Troubleshooting
-
-### Service Fails to Start
-
-Check the logs for detailed error messages:
+Alternatively, create an environment file:
 
 ```bash
-sudo journalctl -u sysmanix -b -n 50
+sudo nano /etc/sysmanix/environment
 ```
 
-Common issues include:
-- Incorrect file permissions
-- Configuration errors
-- Port already in use
-- Insufficient permissions for the sysmanix user
+Add your environment variables:
 
-### Permission Issues
+```
+SYSMANIX_LOG_LEVEL=debug
+SYSMANIX_SERVER_PORT=8080
+```
 
-If SysManix needs access to system services but runs as a non-root user:
+Then reference it in your service file:
+
+```ini
+[Service]
+EnvironmentFile=/etc/sysmanix/environment
+```
+
+### Resource Limits
+
+Control system resources used by SysManix:
+
+```ini
+[Service]
+CPUQuota=50%
+MemoryLimit=512M
+TasksMax=100
+LimitNOFILE=65535
+```
+
+## Service Dependencies
+
+If SysManix depends on other services (like a database), you can specify them:
+
+```ini
+[Unit]
+Description=SysManix Service Manager
+After=network.target postgresql.service
+Requires=postgresql.service
+```
+
+## Monitoring and Logging
+
+### Journald Integration
+
+Systemd automatically captures stdout/stderr from the service. You can view the logs with:
 
 ```bash
-# Add specific capabilities
-sudo setcap cap_dac_override,cap_net_bind_service=+ep /usr/bin/sysmanix
+sudo journalctl -u sysmanix
 ```
 
-### Failed to Load Configuration
+### Custom Log Configuration
 
-Ensure the configuration file exists and has correct permissions:
+If you prefer separate log files, modify your service file:
+
+```ini
+[Service]
+StandardOutput=append:/var/log/sysmanix/stdout.log
+StandardError=append:/var/log/sysmanix/stderr.log
+```
+
+Ensure the log directory exists and has appropriate permissions:
 
 ```bash
-sudo ls -la /etc/sysmanix/config.yaml
-sudo chown sysmanix:sysmanix /etc/sysmanix/config.yaml
-sudo chmod 640 /etc/sysmanix/config.yaml
+sudo mkdir -p /var/log/sysmanix
+sudo chown -R sysmanix:sysmanix /var/log/sysmanix
 ```
 
-## Security Considerations
+## Service Recovery
 
-1. **Firewall Configuration**: Restrict access to the SysManix API port
+Configure how systemd handles service failures:
+
+```ini
+[Service]
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=500s
+StartLimitBurst=5
+```
+
+For critical services, you can add additional actions:
+
+```ini
+[Service]
+ExecStopPost=/opt/sysmanix/scripts/notify-failure.sh
+```
+
+## Watchdog Integration
+
+If SysManix supports watchdog notifications, configure it:
+
+```ini
+[Service]
+WatchdogSec=30s
+```
+
+Your application would need to periodically call `sd_notify("WATCHDOG=1")` to inform systemd it's still functioning properly.
+
+## Creating a Socket-Activated Service
+
+For more responsive startup, you can use socket activation:
+
+1. Create a socket file:
+
+```bash
+sudo nano /etc/systemd/system/sysmanix.socket
+```
+
+2. Add socket configuration:
+
+```ini
+[Socket]
+ListenStream=40200
+BindIPv6Only=both
+
+[Install]
+WantedBy=sockets.target
+```
+
+3. Modify the service file to work with socket activation:
+
+```ini
+[Unit]
+Description=SysManix Service Manager
+After=network.target
+Requires=sysmanix.socket
+
+[Service]
+ExecStart=/opt/sysmanix/sysmanix -config /etc/sysmanix/config.yaml
+```
+
+4. Enable and start the socket:
+
+```bash
+sudo systemctl enable sysmanix.socket
+sudo systemctl start sysmanix.socket
+```
+
+## Creating Auxiliary Services
+
+### Backup Service
+
+Create an automated backup service for SysManix:
+
+1. Create a backup script:
+
+```bash
+sudo nano /opt/sysmanix/scripts/backup.sh
+```
+
+Add script content:
+
+```bash
+#!/bin/bash
+BACKUP_DIR="/var/backups/sysmanix"
+DATE=$(date +"%Y-%m-%d_%H-%M-%S")
+mkdir -p "$BACKUP_DIR"
+cp -r /etc/sysmanix "$BACKUP_DIR/config_$DATE"
+find "$BACKUP_DIR" -type d -mtime +30 -exec rm -rf {} \; 2>/dev/null || true
+```
+
+Make it executable:
+
+```bash
+sudo chmod +x /opt/sysmanix/scripts/backup.sh
+```
+
+2. Create a timer and service:
+
+```bash
+sudo nano /etc/systemd/system/sysmanix-backup.service
+```
+
+Add service content:
+
+```ini
+[Unit]
+Description=SysManix Configuration Backup Service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sysmanix/scripts/backup.sh
+```
+
+Create the timer:
+
+```bash
+sudo nano /etc/systemd/system/sysmanix-backup.timer
+```
+
+Add timer content:
+
+```ini
+[Unit]
+Description=Run SysManix backup daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+3. Enable and start the timer:
+
+```bash
+sudo systemctl enable sysmanix-backup.timer
+sudo systemctl start sysmanix-backup.timer
+```
+
+## Service Health Monitoring
+
+### Creating a Health Check Service
+
+1. Create a health check script:
+
+```bash
+sudo nano /opt/sysmanix/scripts/health-check.sh
+```
+
+Add script content:
+
+```bash
+#!/bin/bash
+HEALTH_ENDPOINT="http://localhost:40200/health"
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_ENDPOINT")
+
+if [ "$STATUS" != "200" ]; then
+    echo "SysManix health check failed with status $STATUS"
+    exit 1
+fi
+
+exit 0
+```
+
+Make it executable:
+
+```bash
+sudo chmod +x /opt/sysmanix/scripts/health-check.sh
+```
+
+2. Create a service and timer:
+
+```bash
+sudo nano /etc/systemd/system/sysmanix-health.service
+```
+
+Add service content:
+
+```ini
+[Unit]
+Description=SysManix Health Check Service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sysmanix/scripts/health-check.sh
+```
+
+Create the timer:
+
+```bash
+sudo nano /etc/systemd/system/sysmanix-health.timer
+```
+
+Add timer content:
+
+```ini
+[Unit]
+Description=Run SysManix health check every 5 minutes
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+3. Enable and start the timer:
+
+```bash
+sudo systemctl enable sysmanix-health.timer
+sudo systemctl start sysmanix-health.timer
+```
+
+## Troubleshooting Systemd Services
+
+### Common Issues and Solutions
+
+1. **Service fails to start**:
+
+   Check the service status:
    ```bash
-   sudo ufw allow from 192.168.1.0/24 to any port 40200 proto tcp
+   sudo systemctl status sysmanix
    ```
 
-2. **Regular Updates**: Keep SysManix updated to get the latest security patches
+   View detailed error logs:
    ```bash
-   sudo systemctl stop sysmanix
-   # update SysManix
-   sudo systemctl start sysmanix
+   sudo journalctl -u sysmanix -n 100
    ```
 
-3. **Audit Logging**: Enable audit logging in your systemd configuration
-   ```ini
-   LogExtraFields=AUDIT_SESSION_ID=123 ACTION=start
+2. **"Permission denied" errors**:
+
+   Check the service user and file permissions:
+   ```bash
+   sudo ls -la /opt/sysmanix/sysmanix
+   sudo ls -la /etc/sysmanix/config.yaml
    ```
 
-## Further Reading
+   Ensure the service user has access to all required resources.
 
-- [Systemd Documentation](https://www.freedesktop.org/software/systemd/man/systemd.service.html)
-- [Linux Security Best Practices](./LINUX_SECURITY.md)
-- [SysManix Configuration Guide](./CONFIGURATION.md)
+3. **Service starts but exits immediately**:
+
+   Look for potential configuration errors:
+   ```bash
+   sudo journalctl -u sysmanix -b
+   ```
+
+   Try running the application manually to see errors:
+   ```bash
+   sudo -u root /opt/sysmanix/sysmanix -config /etc/sysmanix/config.yaml
+   ```
+
+## Performance Optimization
+
+### Adjusting systemd Settings
+
+For optimal performance and faster service startup:
+
+1. Modify `/etc/systemd/system.conf`:
+
+```ini
+DefaultTimeoutStartSec=30s
+DefaultTimeoutStopSec=30s
+DefaultRestartSec=5s
+```
+
+2. Adjust service process priority:
+
+```ini
+[Service]
+Nice=-10  # Higher priority (range: -20 to 19, lower is higher priority)
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=50  # Range: 1-99
+IOSchedulingClass=1  # 1 for real-time, 2 for best-effort
+IOSchedulingPriority=0  # Range: 0-7, lower is higher priority
+```
+
+## Security Hardening
+
+Enhance the security of your SysManix service:
+
+```ini
+[Service]
+# Restrict capabilities
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# File system restrictions
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+PrivateTmp=true
+ReadOnlyPaths=/etc/sysmanix
+ReadWritePaths=/var/log/sysmanix /var/lib/sysmanix
+NoExecPaths=/tmp
+
+# Process restrictions
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+
+# Memory protection
+MemoryDenyWriteExecute=true
+
+# Network security
+PrivateNetwork=false  # Set to true if you don't need network access
+```
+
+Note: Some restrictions may need to be adjusted depending on SysManix's requirements.
+
+## Conclusion
+
+With proper systemd configuration, SysManix can run reliably as a system service with:
+
+- Automatic startup and recovery
+- Resource limits to prevent system overload
+- Security hardening to protect your system
+- Monitoring to ensure continuous operation
+- Scheduled backups to prevent data loss
+
+For more information, refer to the [systemd documentation](https://www.freedesktop.org/software/systemd/man/systemd.service.html).

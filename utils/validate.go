@@ -8,9 +8,22 @@ import (
 	"strings"
 )
 
+// Validation related constants
+const (
+	MaxServiceNameLength = 100
+	MaxUsernameLength    = 50
+	MaxPasswordLength    = 100
+)
+
 var (
 	serviceNameRegex = regexp.MustCompile(`^[a-zA-Z0-9\-_.]+$`)
 	pathRegex        = regexp.MustCompile(`^[a-zA-Z0-9\-_./\\]+$`)
+
+	// ServiceNamePattern defines the allowed characters in service names
+	ServiceNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_\-\.]+$`)
+
+	// UsernamePattern defines the allowed characters in usernames
+	UsernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_\-\.@]+$`)
 )
 
 func ValidatePath(path string) bool {
@@ -52,17 +65,116 @@ func ParseInt(s string) (int, error) {
 	return i, nil
 }
 
-// ValidateServiceName checks if a service name is safe to use
-// This helps prevent command injection
-func ValidateServiceName(name string) bool {
+// ValidateServiceName validates that a service name meets requirements:
+// - Not empty
+// - Only contains allowed characters (alphanumeric, underscore, dash, dot)
+// - Not too long
+func ValidateServiceName(name string) error {
+	name = strings.TrimSpace(name)
+
 	if name == "" {
+		return fmt.Errorf("service name cannot be empty")
+	}
+
+	if len(name) > MaxServiceNameLength {
+		return fmt.Errorf("service name cannot exceed %d characters", MaxServiceNameLength)
+	}
+
+	if !ServiceNamePattern.MatchString(name) {
+		return fmt.Errorf("service name contains invalid characters")
+	}
+
+	return nil
+}
+
+// ValidateUsername validates that a username meets requirements:
+// - Not empty
+// - Only contains allowed characters
+// - Not too long
+func ValidateUsername(username string) error {
+	username = strings.TrimSpace(username)
+
+	if username == "" {
+		return fmt.Errorf("username cannot be empty")
+	}
+
+	if len(username) > MaxUsernameLength {
+		return fmt.Errorf("username cannot exceed %d characters", MaxUsernameLength)
+	}
+
+	if !UsernamePattern.MatchString(username) {
+		return fmt.Errorf("username contains invalid characters")
+	}
+
+	return nil
+}
+
+// ValidatePassword validates that a password meets basic requirements:
+// - Not empty
+// - Not too long
+// Note: This doesn't enforce password complexity - that should be handled by the UI/API
+func ValidatePassword(password string) error {
+	if password == "" {
+		return fmt.Errorf("password cannot be empty")
+	}
+
+	if len(password) > MaxPasswordLength {
+		return fmt.Errorf("password cannot exceed %d characters", MaxPasswordLength)
+	}
+
+	return nil
+}
+
+// ValidateLogQueryParams validates log query parameters
+func ValidateLogQueryParams(lines int) (int, error) {
+	// Default to 100 lines if not specified or invalid
+	if lines <= 0 {
+		return 100, nil
+	}
+
+	// Cap at 1000 lines to prevent resource exhaustion
+	if lines > 1000 {
+		return 1000, fmt.Errorf("maximum allowed log lines is 1000")
+	}
+
+	return lines, nil
+}
+
+// ValidateRole checks if a role is allowed in the system
+func ValidateRole(role string, allowedRoles []string) bool {
+	for _, allowed := range allowedRoles {
+		if role == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateRoles checks if all roles are allowed in the system
+func ValidateRoles(roles []string, allowedRoles []string) error {
+	for _, role := range roles {
+		if !ValidateRole(role, allowedRoles) {
+			return fmt.Errorf("invalid role: %s", role)
+		}
+	}
+	return nil
+}
+
+// IsValidPath checks if a path is valid and safe
+func IsValidPath(path string) bool {
+	// Disallow empty paths
+	if path == "" {
 		return false
 	}
 
-	// Only allow alphanumeric characters, dashes, underscores, and periods
-	// This is a common pattern for service names
-	matched, _ := regexp.MatchString(`^[a-zA-Z0-9\-_.]+$`, name)
-	return matched
+	// Disallow paths with ".." to prevent directory traversal
+	if strings.Contains(path, "..") {
+		return false
+	}
+
+	// Additional path safety checks can be added here
+
+	return true
 }
 
 // SanitizeFilePath sanitizes and validates a file path

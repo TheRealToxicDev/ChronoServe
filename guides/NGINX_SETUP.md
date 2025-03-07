@@ -1,221 +1,282 @@
-# SysManix Nginx Integration Guide
+# SysManix Nginx Setup Guide
 
-This guide explains how to set up Nginx as a reverse proxy for SysManix, enabling HTTPS, load balancing, and additional security features.
+This guide explains how to set up Nginx as a reverse proxy for SysManix, providing HTTPS encryption, load balancing, and enhanced security.
 
-## Prerequisites
+## Benefits of Using Nginx with SysManix
 
-- SysManix installed and running
-- Nginx installed on your server
-- Basic understanding of Nginx configuration
-- (Optional) Domain name for your SysManix instance
-- (Optional) SSL certificate for HTTPS
-
-## Why Use Nginx with SysManix?
-
-Placing Nginx in front of SysManix provides several benefits:
-
-- **HTTPS Support**: Encrypt API traffic with TLS/SSL
+- **HTTPS Support**: Secure communication with TLS encryption
 - **Load Balancing**: Distribute requests across multiple SysManix instances
-- **Additional Security**: Rate limiting, IP filtering, and WAF capabilities
-- **Caching**: Improve performance by caching responses
+- **Rate Limiting**: Protect your API from abuse and DDoS attacks
+- **Authentication**: Add an additional layer of protection
+- **Caching**: Improve performance for frequently requested endpoints
 - **Path Rewriting**: Serve SysManix under a specific URL path
-- **Authentication**: Add an additional layer of authentication
 
-## Basic Nginx Configuration
+## Basic Nginx Setup
 
-### Simple HTTP Proxy
+### Installing Nginx
 
-Create a new configuration file for SysManix:
-
-```bash
-sudo nano /etc/nginx/sites-available/sysmanix
-```
-
-Add the following basic configuration:
-
-```nginx
-server {
-    listen 80;
-    server_name sysmanix.example.com;  # Replace with your domain or IP
-
-    access_log /var/log/nginx/sysmanix-access.log;
-    error_log /var/log/nginx/sysmanix-error.log;
-
-    location / {
-        proxy_pass http://localhost:40200;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Enable the site and reload Nginx:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/sysmanix /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### HTTPS Configuration with Let's Encrypt
-
-1. Install Certbot for Let's Encrypt certificates:
-
+#### On Debian/Ubuntu:
 ```bash
 sudo apt update
+sudo apt install nginx
+```
+
+#### On CentOS/RHEL:
+```bash
+sudo yum install epel-release
+sudo yum install nginx
+```
+
+#### On Windows:
+Download and install Nginx from [nginx.org](https://nginx.org/en/download.html)
+
+### Creating a Basic Configuration
+
+1. Create a new Nginx server configuration:
+
+   ```bash
+   # Linux
+   sudo nano /etc/nginx/sites-available/sysmanix
+
+   # Windows
+   # Edit C:\nginx\conf\nginx.conf
+   ```
+
+2. Add a basic proxy configuration:
+
+   ```nginx
+   server {
+       listen 80;
+       server_name sysmanix.example.com;
+
+       location / {
+           proxy_pass http://localhost:40200;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+3. Enable the site configuration (Linux only):
+
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/sysmanix /etc/nginx/sites-enabled/
+   ```
+
+4. Test the configuration and restart Nginx:
+
+   ```bash
+   # Linux
+   sudo nginx -t
+   sudo systemctl restart nginx
+
+   # Windows
+   C:\nginx\nginx.exe -t
+   C:\nginx\nginx.exe -s reload
+   ```
+
+## Setting Up HTTPS with Let's Encrypt
+
+### Installing Certbot
+
+#### On Debian/Ubuntu:
+```bash
 sudo apt install certbot python3-certbot-nginx
 ```
 
-2. Obtain and configure SSL certificate:
+#### On CentOS/RHEL:
+```bash
+sudo yum install certbot python3-certbot-nginx
+```
+
+### Obtaining SSL Certificates
 
 ```bash
 sudo certbot --nginx -d sysmanix.example.com
 ```
 
-3. Certbot will automatically modify your Nginx configuration for HTTPS. The final configuration should look similar to:
+Follow the prompts to complete the certificate issuance and configuration.
+
+### Manual SSL Configuration
+
+If you prefer to configure SSL manually or are using a different certificate provider:
+
+1. Modify your Nginx configuration:
+
+   ```nginx
+   server {
+       listen 443 ssl http2;
+       server_name sysmanix.example.com;
+
+       ssl_certificate /etc/nginx/ssl/sysmanix.crt;
+       ssl_certificate_key /etc/nginx/ssl/sysmanix.key;
+       ssl_protocols TLSv1.2 TLSv1.3;
+       ssl_ciphers HIGH:!aNULL:!MD5;
+       ssl_prefer_server_ciphers on;
+
+       location / {
+           proxy_pass http://localhost:40200;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto https;
+       }
+   }
+
+   # Redirect HTTP to HTTPS
+   server {
+       listen 80;
+       server_name sysmanix.example.com;
+       return 301 https://$host$request_uri;
+   }
+   ```
+
+2. Restart Nginx to apply changes.
+
+## Advanced Nginx Configurations
+
+### Load Balancing
+
+If you're running multiple SysManix instances for high availability:
 
 ```nginx
-server {
-    listen 80;
-    server_name sysmanix.example.com;
-    return 301 https://$server_name$request_uri;  # Redirect HTTP to HTTPS
-}
-
-server {
-    listen 443 ssl;
-    server_name sysmanix.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/sysmanix.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/sysmanix.example.com/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # SSL configuration
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:SSL:50m;
-    ssl_stapling on;
-    ssl_stapling_verify on;
-
-    # Security headers
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options DENY;
-    add_header X-XSS-Protection "1; mode=block";
-
-    access_log /var/log/nginx/sysmanix-access.log;
-    error_log /var/log/nginx/sysmanix-error.log;
-
-    location / {
-        proxy_pass http://localhost:40200;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-## Advanced Configurations
-
-### Load Balancing Multiple SysManix Instances
-
-If you're running multiple SysManix instances for high availability, configure load balancing:
-
-```nginx
+# Define upstream servers
 upstream sysmanix_backend {
-    server 192.168.1.10:40200;
-    server 192.168.1.11:40200;
-    server 192.168.1.12:40200;
+    server 192.168.1.10:40200 weight=3;
+    server 192.168.1.11:40200 weight=1;
+    server 192.168.1.12:40200 backup;
 }
 
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name sysmanix.example.com;
 
-    # SSL configuration here...
+    # SSL configuration omitted for brevity
 
     location / {
         proxy_pass http://sysmanix_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Set load balancing method (optional)
-        proxy_next_upstream error timeout http_500;
-
-        # Health checks
-        health_check interval=10 fails=3 passes=2;
+        proxy_set_header X-Forwarded-Proto https;
     }
 }
 ```
 
 ### Rate Limiting
 
-Add rate limiting to protect your SysManix API from abuse:
+Protect your API from abuse:
 
 ```nginx
-# Define a limit zone based on client IP
-limit_req_zone $binary_remote_addr zone=sysmanix_limit:10m rate=10r/s;
+# Define rate limiting zones
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=5r/s;
+limit_req_status 429;
 
 server {
-    # ...existing configuration...
+    # Server configuration omitted for brevity
 
     location / {
-        # Apply rate limiting
-        limit_req zone=sysmanix_limit burst=20 nodelay;
+        # Apply rate limiting (5 requests per second with burst of 10)
+        limit_req zone=api_limit burst=10 nodelay;
 
         proxy_pass http://localhost:40200;
-        # ...remaining proxy configuration...
+        # Other proxy settings omitted for brevity
     }
 
-    # Different rate limit for login endpoint
-    location /auth/login {
-        limit_req zone=sysmanix_limit burst=5 nodelay;
-        proxy_pass http://localhost:40200/auth/login;
-        # ...remaining proxy configuration...
+    # Allow higher rate for health check endpoint
+    location /health {
+        proxy_pass http://localhost:40200/health;
+        # Other proxy settings omitted for brevity
     }
 }
 ```
 
-### IP Whitelisting
-
-Restrict access to the SysManix API by IP address:
-
-```nginx
-server {
-    # ...existing configuration...
-
-    # Allow access only from specific IPs
-    allow 10.0.0.0/8;     # Internal network
-    allow 192.168.1.0/24; # Office network
-    deny all;             # Deny all other IPs
-
-    location / {
-        proxy_pass http://localhost:40200;
-        # ...remaining proxy configuration...
-    }
-}
-```
-
-### Path Rewriting
+### Path-Based Routing
 
 Serve SysManix under a specific URL path:
 
 ```nginx
 server {
-    # ...existing configuration...
+    # Server configuration omitted for brevity
 
-    # Serve SysManix under /api/sysmanix
-    location /api/sysmanix/ {
-        rewrite ^/api/sysmanix/(.*) /$1 break;
-        proxy_pass http://localhost:40200;
-        # ...remaining proxy configuration...
+    # Serve SysManix under /api path
+    location /api/ {
+        # Strip /api prefix when forwarding
+        rewrite ^/api/(.*) /$1 break;
+        proxy_pass http://localhost:40200/;
+        # Other proxy settings omitted for brevity
+    }
+
+    # Serve static frontend files
+    location / {
+        root /var/www/sysmanix-ui;
+        index index.html;
+        try_files $uri $uri/ /index.html;
     }
 }
 ```
+
+### Additional Security Headers
+
+Improve security with additional headers:
+
+```nginx
+server {
+    # Server configuration omitted for brevity
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload";
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; img-src 'self'; style-src 'self';";
+
+    location / {
+        proxy_pass http://localhost:40200;
+        # Other proxy settings omitted for brevity
+    }
+}
+```
+
+### Basic Authentication
+
+Add an additional authentication layer:
+
+1. Create an authentication file:
+
+   ```bash
+   # Install htpasswd tool if needed
+   sudo apt install apache2-utils
+
+   # Create password file
+   sudo htpasswd -c /etc/nginx/.htpasswd admin
+   # Follow the prompts to set a password
+   ```
+
+2. Configure Nginx to use it:
+
+   ```nginx
+   server {
+       # Server configuration omitted for brevity
+
+       location / {
+           auth_basic "Restricted Access";
+           auth_basic_user_file /etc/nginx/.htpasswd;
+
+           proxy_pass http://localhost:40200;
+           # Other proxy settings omitted for brevity
+       }
+
+       # Skip authentication for health checks
+       location /health {
+           auth_basic off;
+           proxy_pass http://localhost:40200/health;
+           # Other proxy settings omitted for brevity
+       }
+   }
+   ```
 
 ### WebSocket Support
 
@@ -223,205 +284,140 @@ If SysManix uses WebSockets for real-time updates:
 
 ```nginx
 server {
-    # ...existing configuration...
+    # Server configuration omitted for brevity
 
     location / {
         proxy_pass http://localhost:40200;
-        # ...remaining proxy configuration...
 
         # WebSocket support
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+
+        # Other proxy settings omitted for brevity
     }
 }
 ```
 
-## Authentication with Nginx
+### Caching Responses
 
-### Basic Authentication
-
-Add an additional layer of authentication:
-
-1. Create a password file:
-
-```bash
-sudo apt install apache2-utils
-sudo htpasswd -c /etc/nginx/sysmanix_htpasswd admin
-```
-
-2. Configure Nginx to use basic auth:
+For endpoints that don't change frequently:
 
 ```nginx
-server {
-    # ...existing configuration...
-
-    location / {
-        auth_basic "Restricted Access";
-        auth_basic_user_file /etc/nginx/sysmanix_htpasswd;
-
-        proxy_pass http://localhost:40200;
-        # ...remaining proxy configuration...
-    }
-
-    # Allow login endpoint without basic auth
-    location /auth/login {
-        proxy_pass http://localhost:40200/auth/login;
-        # ...remaining proxy configuration...
-    }
-}
-```
-
-## Optimizing Performance
-
-### Response Caching
-
-Enable caching for appropriate endpoints:
-
-```nginx
-# Define a cache zone
+# Define cache location
 proxy_cache_path /var/cache/nginx/sysmanix levels=1:2 keys_zone=sysmanix_cache:10m max_size=1g inactive=60m;
 
 server {
-    # ...existing configuration...
+    # Server configuration omitted for brevity
 
-    # Cache health endpoint responses
-    location /health {
-        proxy_pass http://localhost:40200/health;
+    location /services {
         proxy_cache sysmanix_cache;
         proxy_cache_valid 200 1m;  # Cache successful responses for 1 minute
-        proxy_cache_lock on;
-        add_header X-Cache-Status $upstream_cache_status;
-        # ...remaining proxy configuration...
+        proxy_cache_methods GET;
+        proxy_cache_key $request_uri;
+
+        proxy_pass http://localhost:40200/services;
+        # Other proxy settings omitted for brevity
     }
 
-    # Don't cache other endpoints like /services
-    location / {
-        proxy_pass http://localhost:40200;
+    # Don't cache endpoints that modify data
+    location ~ ^/(services/start|services/stop) {
         proxy_no_cache 1;
-        # ...remaining proxy configuration...
+        proxy_cache_bypass 1;
+
+        proxy_pass http://localhost:40200;
+        # Other proxy settings omitted for brevity
     }
 }
 ```
 
-### Compression
+## Nginx Configuration for Docker Environments
 
-Enable compression to reduce bandwidth:
+If running SysManix in Docker:
 
 ```nginx
 server {
-    # ...existing configuration...
+    listen 443 ssl http2;
+    server_name sysmanix.example.com;
 
-    # Enable gzip compression
-    gzip on;
-    gzip_comp_level 5;
-    gzip_min_length 256;
-    gzip_proxied any;
-    gzip_vary on;
-    gzip_types
-        application/javascript
-        application/json
-        application/xml
-        text/css
-        text/plain;
+    # SSL configuration omitted for brevity
 
     location / {
-        proxy_pass http://localhost:40200;
-        # ...remaining proxy configuration...
+        # Docker host networking
+        proxy_pass http://docker-host-ip:40200;
+        # Or use Docker network name
+        # proxy_pass http://sysmanix:40200;
+
+        # Other proxy settings omitted for brevity
     }
 }
 ```
 
-## Monitoring and Logging
-
-### Enhanced Logging Format
-
-Create a more detailed log format:
-
-```nginx
-log_format sysmanix_detailed '$remote_addr - $remote_user [$time_local] '
-                            '"$request" $status $body_bytes_sent '
-                            '"$http_referer" "$http_user_agent" '
-                            '$request_time $upstream_response_time $pipe';
-
-server {
-    # ...existing configuration...
-    access_log /var/log/nginx/sysmanix-access.log sysmanix_detailed;
-}
-```
-
-### Status Page for Monitoring
-
-Enable Nginx status page for monitoring:
-
-```nginx
-server {
-    # ...existing configuration...
-
-    # Nginx status - restricted to local access
-    location /nginx_status {
-        stub_status on;
-        access_log off;
-        allow 127.0.0.1;
-        deny all;
-    }
-}
-```
-
-## Troubleshooting
-
-### Checking Nginx Configuration
-
-Always validate your configuration before applying changes:
-
-```bash
-sudo nginx -t
-```
+## Troubleshooting Nginx Configuration
 
 ### Common Issues
 
-1. **502 Bad Gateway**: SysManix is not running or not accessible
-   - Check if SysManix is running: `systemctl status sysmanix`
-   - Verify the SysManix port configuration
+1. **502 Bad Gateway**:
+   - Verify SysManix is running: `curl http://localhost:40200/health`
+   - Check Nginx error logs: `sudo tail -f /var/log/nginx/error.log`
+   - Ensure SELinux/AppArmor allows Nginx to connect to SysManix
 
-2. **403 Forbidden**: Permission issues with Nginx
+2. **SSL Certificate Issues**:
+   - Verify certificate paths in Nginx configuration
+   - Check certificate expiry: `openssl x509 -in /path/to/cert.crt -noout -enddate`
+   - Validate certificate chain: `openssl verify -CAfile /path/to/chain.pem /path/to/cert.crt`
+
+3. **Permission Denied**:
    - Check Nginx worker process permissions
-   - Verify IP restriction rules
+   - Ensure SSL private keys have correct permissions (typically 600)
 
-3. **SSL Certificate Issues**:
-   - Renew certificates: `sudo certbot renew`
-   - Check certificate validity: `sudo certbot certificates`
+### Verifying Your Configuration
 
-4. **Headers Not Forwarded**:
-   - Ensure proxy_set_header directives are correctly configured
+Test your Nginx configuration before applying changes:
 
-## Security Best Practices
+```bash
+# Linux
+sudo nginx -t
 
-1. **Disable Server Tokens**: Hide Nginx version information
-   ```nginx
-   server_tokens off;
-   ```
+# Windows
+C:\nginx\nginx.exe -t
+```
 
-2. **Configure Security Headers**: Add appropriate security headers
-   ```nginx
-   add_header X-Content-Type-Options nosniff;
-   add_header X-Frame-Options DENY;
-   add_header X-XSS-Protection "1; mode=block";
-   ```
+## Multi-Environment Setup
 
-3. **Implement Request Filtering**: Block suspicious requests
-   ```nginx
-   # Block SQL injection attempts
-   if ($args ~* "([;']|--)|insert|select|union|update|delete|drop|truncate") {
-       return 403;
-   }
-   ```
+For managing multiple environments (dev, staging, production):
 
-4. **Regular Updates**: Keep Nginx and SysManix updated to patch security vulnerabilities
+```nginx
+# Include a specific environment config
+include /etc/nginx/sysmanix/sysmanix-environment.conf;
+```
 
-## Further Reading
+Create separate environment files:
 
-- [Official Nginx Documentation](https://nginx.org/en/docs/)
-- [Let's Encrypt Documentation](https://letsencrypt.org/docs/)
-- [SysManix Security Guide](./SECURITY.md)
-- [Load Balancing Best Practices](./LOAD_BALANCING.md)
+```bash
+# /etc/nginx/sysmanix/sysmanix-production.conf
+server {
+    listen 443 ssl http2;
+    server_name sysmanix.example.com;
+    # Production configuration
+}
+
+# /etc/nginx/sysmanix/sysmanix-staging.conf
+server {
+    listen 443 ssl http2;
+    server_name staging.sysmanix.example.com;
+    # Staging configuration
+}
+```
+
+Then create a symbolic link to the desired environment:
+
+```bash
+sudo ln -sf /etc/nginx/sysmanix/sysmanix-production.conf /etc/nginx/sysmanix/sysmanix-environment.conf
+```
+
+## Conclusion
+
+Using Nginx as a reverse proxy for SysManix provides enhanced security, improved performance, and additional management capabilities. The configurations in this guide can be adapted to suit your specific requirements, from simple deployments to complex high-availability setups.
+
+For more help with Nginx configuration, refer to the [official Nginx documentation](https://nginx.org/en/docs/).

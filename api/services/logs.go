@@ -43,8 +43,8 @@ func ViewServiceLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate service name - use the utility function directly
-	if !utils.ValidateServiceName(name) {
-		utils.WriteErrorResponse(w, "Invalid service name", http.StatusBadRequest)
+	if err := utils.ValidateServiceName(name); err != nil {
+		utils.WriteErrorResponse(w, "Invalid service name: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 

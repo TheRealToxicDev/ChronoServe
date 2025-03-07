@@ -10,86 +10,108 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-type PasswordConfig struct {
-	time    uint32
-	memory  uint32
-	threads uint8
-	keyLen  uint32
-}
+// Password hashing parameters
+const (
+	argonTime    = 1
+	argonMemory  = 64 * 1024
+	argonThreads = 4
+	argonKeyLen  = 32
+	saltLength   = 16
+)
 
-var defaultPasswordConfig = PasswordConfig{
-	time:    1,
-	memory:  64 * 1024,
-	threads: 4,
-	keyLen:  32,
-}
-
-// HashPassword creates a secure hash using Argon2id
+// HashPassword creates an Argon2id hash of a password
 func HashPassword(password string) (string, error) {
 	// Generate a random salt
-	salt := make([]byte, 16)
+	salt := make([]byte, saltLength)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
 
-	cfg := defaultPasswordConfig
-	hash := argon2.IDKey(
-		[]byte(password),
-		salt,
-		cfg.time,
-		cfg.memory,
-		cfg.threads,
-		cfg.keyLen,
-	)
+	// Hash the password with Argon2id
+	hash := argon2.IDKey([]byte(password), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
 
-	// Format: $argon2id$v=19$m=65536,t=1,p=4$<salt>$<hash>
-	encoded := fmt.Sprintf(
-		"$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
-		cfg.memory,
-		cfg.time,
-		cfg.threads,
-		base64.RawStdEncoding.EncodeToString(salt),
-		base64.RawStdEncoding.EncodeToString(hash),
-	)
+	// Format the hash parameters
+	encodedSalt := base64.RawStdEncoding.EncodeToString(salt)
+	encodedHash := base64.RawStdEncoding.EncodeToString(hash)
 
-	return encoded, nil
+	// Return formatted hash string
+	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
+		argonMemory, argonTime, argonThreads, encodedSalt, encodedHash), nil
 }
 
-// VerifyPassword checks if a password matches its hash
-func VerifyPassword(password, encodedHash string) (bool, error) {
-	// Parse the hash string
+// VerifyPassword checks if a password matches a hashed value
+func VerifyPassword(password string, encodedHash string) (bool, error) {
+	// Extract parameters from encoded hash
 	parts := strings.Split(encodedHash, "$")
 	if len(parts) != 6 {
 		return false, fmt.Errorf("invalid hash format")
 	}
 
-	var cfg PasswordConfig
-	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &cfg.memory, &cfg.time, &cfg.threads)
-	if err != nil {
-		return false, err
+	// Verify hash type and version
+	if parts[1] != "argon2id" || parts[2] != "v=19" {
+		return false, fmt.Errorf("unsupported hash algorithm or version")
 	}
 
+	// Extract parameters
+	var memory uint32
+	var time uint32
+	var threads uint8
+	_, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &time, &threads)
+	if err != nil {
+		return false, fmt.Errorf("invalid hash parameters: %v", err)
+	}
+
+	// Decode salt and hash values
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("invalid salt: %v", err)
 	}
 
-	decodedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("invalid hash: %v", err)
 	}
 
-	cfg.keyLen = uint32(len(decodedHash))
+	// Compute hash with the same parameters
+	computedHash := argon2.IDKey([]byte(password), salt, time, memory, threads, uint32(len(expectedHash)))
 
-	// Compute hash from the password and compare
-	hash := argon2.IDKey(
-		[]byte(password),
-		salt,
-		cfg.time,
-		cfg.memory,
-		cfg.threads,
-		cfg.keyLen,
-	)
+	// Compare hashes in constant time to prevent timing attacks
+	return subtle.ConstantTimeCompare(computedHash, expectedHash) == 1, nil
+}
 
-	return subtle.ConstantTimeCompare(hash, decodedHash) == 1, nil
+// GenerateRandomString creates a cryptographically secure random string
+func GenerateRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)[:length], nil
+}
+
+// GenerateSecureKey generates a secure key for JWT signing
+func GenerateSecureKey(length int) (string, error) {
+	if length < 32 {
+		length = 32 // Minimum recommended length for security
+	}
+
+	return GenerateRandomString(length)
+}
+
+// IsDefaultPassword checks if a password hash matches any of the known default passwords
+func IsDefaultPassword(hash string) bool {
+	// Define known default password hashes
+	defaultHashes := []string{
+		"$argon2id$v=19$m=65536,t=1,p=4$...",
+		"$argon2id$v=19$m=65536,t=1,p=4$...",
+	}
+
+	// Check if the hash matches any default
+	for _, defaultHash := range defaultHashes {
+		if hash == defaultHash {
+			return true
+		}
+	}
+
+	return false
 }
